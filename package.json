@@ -1,0 +1,24 @@
+{
+  "name": "scalp-scanner",
+  "version": "1.0.0",
+  "description": "เครื่องมือช่วยคัดกรองหุ้นอเมริกาสำหรับ scalping/day trade — Web UI + ให้คะแนนโอกาส + แจ้งเตือนราคา",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "demo": "node demo.js",
+    "cli": "node monitor.js",
+    "backtest": "node src/backtest.js",
+    "test": "node test/smoke-test.js",
+    "setup": "node setup-env.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "yahoo-finance2": "^3.15.4"
+  }
+}

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scalp Scanner — Backtest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Noto+Serif+Thai:wght@500;600&display=swap">
+<link rel="stylesheet" href="/theme.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="/theme.js"></script>
+<style>
+  .card { padding: 20px 22px; }
+  table.zebra tbody tr:nth-child(odd) { background: rgba(183, 104, 138, .035); }
+  table.zebra thead th { letter-spacing: .04em; font-weight: 600; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ═══ แถบบน ═══ -->
+<header class="topbar">
+  <div class="max-w-[1800px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+    <a href="/" class="flex items-center gap-3">
+      <span class="brand-mark" data-icon="gem"></span>
+      <span>
+        <span class="brand-name block">Scalp Scanner</span>
+        <span class="brand-tag block">เครื่องมือช่วยคัดกรองหุ้นอเมริกาและหุ้นไทย — ไม่ใช่คำแนะนำการลงทุน</span>
+      </span>
+    </a>
+    <nav class="flex flex-wrap items-center gap-1.5">
+      <a href="/" class="nav-pill"><span data-icon="layout"></span>แดชบอร์ด</a>
+      <a href="/backtest" class="nav-pill active"><span data-icon="chart"></span>Backtest</a>
+      <a href="/settings" class="nav-pill"><span data-icon="sliders"></span>Settings</a>
+    </nav>
+  </div>
+</header>
+
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+  <div>
+    <h1 class="page-title">Backtest — ผลย้อนหลังของสัญญาณที่ระบบเคยให้</h1>
+    <p class="page-sub">ตรวจว่าเกณฑ์ที่ตั้งไว้ใช้ได้จริงหรือเปล่า <b class="text-amber-400 font-semibold">ก่อนเอาเงินจริงลง</b></p>
+  </div>
+
+  <section class="card">
+    <div class="flex flex-wrap items-end gap-4">
+      <label class="block">
+        <span class="block text-xs font-medium text-slate-300 mb-1.5">ดูผลกี่นาทีหลังให้สัญญาณ</span>
+        <select id="window" class="field text-sm">
+          <option value="15">15 นาที</option>
+          <option value="30">30 นาที</option>
+          <option value="60" selected>60 นาที</option>
+          <option value="120">2 ชั่วโมง</option>
+          <option value="390">1 วันทำการ (390 นาที)</option>
+        </select>
+      </label>
+      <label class="block">
+        <span class="block text-xs font-medium text-slate-300 mb-1.5">ดูเฉพาะคะแนน ≥</span>
+        <input id="minScore" type="number" min="0" max="100" step="5" placeholder="ทั้งหมด"
+               class="field w-32 text-sm num">
+      </label>
+      <button id="btnRun" class="btn btn-primary px-6"><span data-icon="play"></span>วิเคราะห์</button>
+      <div id="status" class="text-xs text-slate-400 pb-3"></div>
+    </div>
+  </section>
+
+  <div id="result" class="space-y-5"></div>
+
+  <footer class="notice-gold p-5 text-xs leading-relaxed">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="h-icon gold !w-7 !h-7" data-icon="shield"></span>
+      <b class="text-sm font-serif">คำเตือน</b>
+    </div>
+    ผลการทดสอบย้อนหลังไม่ใช่การรับประกันผลในอนาคต
+    และเครื่องมือนี้ไม่ใช่คำแนะนำการลงทุน ตัวเลขที่เห็นคำนวณจากข้อมูลที่ระบบเคยเก็บไว้เท่านั้น
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const f2 = (v) => Number.isFinite(v) ? v.toFixed(2) : '—';
+const f3 = (v) => Number.isFinite(v) ? v.toFixed(3) : '—';
+const rColor = (v) => !Number.isFinite(v) ? 'text-slate-400' : v > 0.05 ? 'text-emerald-400' : v < -0.05 ? 'text-red-400' : 'text-slate-300';
+const hIcon = (name, variant) => (window.themeHIcon ? window.themeHIcon(name, variant) : '');
+
+// วาดกราฟ equity curve เป็น SVG (ไม่ต้องโหลด library)
+function equityChart(curve) {
+  if (!curve || curve.length < 2) return '<div class="text-xs text-slate-500">ข้อมูลไม่พอวาดกราฟ (ต้องมีอย่างน้อย 2 ไม้)</div>';
+
+  const W = 900, H = 200, PAD = 30;
+  const min = Math.min(0, ...curve);
+  const max = Math.max(0, ...curve);
+  const range = (max - min) || 1;
+
+  const x = (i) => PAD + (i / (curve.length - 1)) * (W - PAD * 2);
+  const y = (v) => H - PAD - ((v - min) / range) * (H - PAD * 2);
+
+  const pts = curve.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const zeroY = y(0).toFixed(1);
+  const last = curve[curve.length - 1];
+  const lineColor = last >= 0 ? '#2F8264' : '#C03A53';
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" class="w-full" style="max-height:220px">
+      <defs><linearGradient id="eqFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${lineColor}" stop-opacity="0.16"/><stop offset="1" stop-color="${lineColor}" stop-opacity="0"/>
+      </linearGradient></defs>
+      <line x1="${PAD}" y1="${zeroY}" x2="${W - PAD}" y2="${zeroY}" stroke="#D8C6C0" stroke-width="1" stroke-dasharray="4 4"/>
+      <polygon points="${x(0).toFixed(1)},${zeroY} ${pts} ${x(curve.length - 1).toFixed(1)},${zeroY}" fill="url(#eqFill)"/>
+      <polyline points="${pts}" fill="none" stroke="${lineColor}" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>
+      <text x="${PAD - 4}" y="${y(max).toFixed(1)}" fill="#83717B" font-size="10" text-anchor="end">${f2(max)}R</text>
+      <text x="${PAD - 4}" y="${zeroY}" fill="#83717B" font-size="10" text-anchor="end">0</text>
+      <text x="${PAD - 4}" y="${y(min).toFixed(1)}" fill="#83717B" font-size="10" text-anchor="end">${f2(min)}R</text>
+      <text x="${W - PAD}" y="14" fill="#6D5C64" font-size="11" text-anchor="end">ทุนสะสม ${f2(last)}R จาก ${curve.length} ไม้</text>
+    </svg>`;
+}
+
+function statTiles(o, dd) {
+  const tiles = [
+    ['อัตราชนะ (win rate)', Number.isFinite(o.winRate) ? o.winRate.toFixed(1) + '%' : '—',
+      `ชนะ ${o.wins} / แพ้ ${o.losses}` + (o.undecided ? ` / ยังไม่ตัดสิน ${o.undecided}` : ''),
+      o.winRate >= 50 ? 'text-emerald-400' : o.winRate >= 40 ? 'text-yellow-400' : 'text-orange-400'],
+    ['กำไรเฉลี่ยเมื่อชนะ', f2(o.avgGain) + 'R', 'ต่อไม้ที่ชนะ', 'text-emerald-400'],
+    ['ขาดทุนเฉลี่ยเมื่อแพ้', f2(o.avgLoss) + 'R', 'ต่อไม้ที่แพ้', 'text-red-400'],
+    ['ค่าคาดหวังต่อไม้', f3(o.expectancy) + 'R', 'expectancy — ตัวเลขสำคัญที่สุด', rColor(o.expectancy)],
+    ['Max drawdown', f2(dd.maxDrawdownR) + 'R', 'ทุนลดจากยอดสูงสุดมากที่สุด', 'text-orange-400'],
+    ['Profit factor', o.profitFactor == null ? '—' : (o.profitFactor === null ? '—' : (o.profitFactor > 1e6 ? '∞' : f2(o.profitFactor))),
+      'กำไรรวม ÷ ขาดทุนรวม', o.profitFactor > 1 ? 'text-emerald-400' : 'text-orange-400'],
+  ];
+  return `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    ${tiles.map(([label, val, sub, cls]) => `
+      <div class="stat">
+        <div class="stat-label">${label}</div>
+        <div class="stat-value num ${cls}">${val}</div>
+        <div class="stat-note">${sub}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function render(r) {
+  if (r.evaluated === 0) {
+    $('result').innerHTML = `
+      <div class="card">
+        <div class="text-sm text-slate-300 mb-3">${esc(r.recommendation)}</div>
+        <div class="text-xs text-slate-500">สัญญาณในประวัติทั้งหมด: ${r.totalSignals} · ประเมินได้ 0</div>
+        ${r.skipReasons?.length ? `
+          <div class="mt-3">
+            <div class="text-xs font-semibold text-slate-400 mb-1">เหตุผลที่ประเมินไม่ได้:</div>
+            <ul class="text-xs text-slate-500 list-disc pl-5 space-y-0.5">
+              ${r.skipReasons.map(s => `<li>${esc(s.reason)} <span class="text-slate-600">(${s.count} ครั้ง)</span></li>`).join('')}
+            </ul>
+          </div>` : ''}
+      </div>`;
+    return;
+  }
+
+  const o = r.overall;
+  $('result').innerHTML = `
+    ${statTiles(o, r.drawdown)}
+
+    <section class="card">
+      <h2 class="h-title mb-3">${hIcon('trending', 'jade')}ทุนสะสม (equity curve) หน่วยเป็น R</h2>
+      ${equityChart(r.drawdown.curve)}
+      <div class="text-[11px] text-slate-500 mt-2">
+        1R = เงินที่เสี่ยงต่อไม้ · ประเมินได้ ${r.evaluated} ไม้ จากทั้งหมด ${r.totalSignals}
+        ${r.skipped ? ` · ประเมินไม่ได้ ${r.skipped} ไม้` : ''}
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="h-title mb-2">${hIcon('target')}แยกตามช่วงคะแนน</h2>
+      <p class="text-[11px] text-slate-500 mb-3">
+        นี่คือคำถามสำคัญ: <b>คะแนนสูงได้ผลดีจริงหรือเปล่า?</b>
+        ถ้าค่าคาดหวังไม่เพิ่มตามคะแนน แปลว่าระบบให้คะแนนยังไม่มีประโยชน์ ต้องปรับน้ำหนักปัจจัย
+      </p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm zebra">
+          <thead class="text-[11px] uppercase text-slate-400 border-b border-slate-700">
+            <tr><th class="text-left px-2 py-2">ช่วงคะแนน</th><th class="text-right px-2 py-2">จำนวนไม้</th>
+            <th class="text-right px-2 py-2">ชนะ%</th><th class="text-right px-2 py-2">กำไรเฉลี่ย</th>
+            <th class="text-right px-2 py-2">ขาดทุนเฉลี่ย</th><th class="text-right px-2 py-2">ค่าคาดหวัง</th></tr>
+          </thead>
+          <tbody>
+            ${r.byScoreBucket.map(b => `
+              <tr class="border-b border-slate-800/60">
+                <td class="px-2 py-2 font-semibold">${esc(b.label)}</td>
+                <td class="px-2 py-2 text-right num">${b.n}${b.n < 5 ? ' <span class="text-[10px] text-amber-600">(น้อย)</span>' : ''}</td>
+                <td class="px-2 py-2 text-right num">${b.winRate.toFixed(1)}%</td>
+                <td class="px-2 py-2 text-right num text-emerald-400">${f2(b.avgGain)}R</td>
+                <td class="px-2 py-2 text-right num text-red-400">${f2(b.avgLoss)}R</td>
+                <td class="px-2 py-2 text-right num font-bold ${rColor(b.expectancy)}">${f3(b.expectancy)}R</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="h-title mb-2">${hIcon('flask', 'plum')}ปัจจัยไหนช่วยแยกไม้ดีออกจากไม้แย่</h2>
+      <p class="text-[11px] text-slate-500 mb-3">
+        เทียบไม้ที่ปัจจัยนั้นได้คะแนนสูง (≥70) กับไม้ที่ได้คะแนนต่ำ (&lt;70)
+        · <b>ผลต่างเป็นบวกมาก</b> = ปัจจัยนี้มีประโยชน์จริง ควรเพิ่มน้ำหนัก
+        · <b>ผลต่างติดลบ</b> = ปัจจัยนี้ทำให้แย่ลง ควรลดน้ำหนัก
+      </p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm zebra">
+          <thead class="text-[11px] uppercase text-slate-400 border-b border-slate-700">
+            <tr><th class="text-left px-2 py-2">ปัจจัย</th>
+            <th class="text-right px-2 py-2">คะแนนสูง (n)</th><th class="text-right px-2 py-2">ค่าคาดหวัง</th>
+            <th class="text-right px-2 py-2">คะแนนต่ำ (n)</th><th class="text-right px-2 py-2">ค่าคาดหวัง</th>
+            <th class="text-right px-2 py-2">ผลต่าง</th></tr>
+          </thead>
+          <tbody>
+            ${r.byFactor.map(f => f.insufficient
+              ? `<tr class="border-b border-slate-800/60 opacity-50"><td class="px-2 py-2">${esc(f.label)}</td>
+                 <td colspan="5" class="px-2 py-2 text-xs text-slate-500">ข้อมูลไม่พอ (${f.n} ไม้ ต้องมีอย่างน้อย 4)</td></tr>`
+              : `<tr class="border-b border-slate-800/60">
+                 <td class="px-2 py-2 font-semibold">${esc(f.label)}</td>
+                 <td class="px-2 py-2 text-right num text-slate-400">${f.highN}</td>
+                 <td class="px-2 py-2 text-right num ${rColor(f.highExpectancy)}">${f3(f.highExpectancy)}R</td>
+                 <td class="px-2 py-2 text-right num text-slate-400">${f.lowN}</td>
+                 <td class="px-2 py-2 text-right num ${rColor(f.lowExpectancy)}">${f3(f.lowExpectancy)}R</td>
+                 <td class="px-2 py-2 text-right num font-bold ${rColor(f.edge)}">${f.edge == null ? '—' : (f.edge >= 0 ? '+' : '') + f3(f.edge) + 'R'}</td>
+               </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    ${r.byResistanceMethod?.length ? `
+    <section class="card">
+      <h2 class="h-title mb-3">${hIcon('ruler')}แยกตามวิธีหาแนวต้าน</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm zebra">
+          <thead class="text-[11px] uppercase text-slate-400 border-b border-slate-700">
+            <tr><th class="text-left px-2 py-2">วิธี</th><th class="text-right px-2 py-2">จำนวน</th>
+            <th class="text-right px-2 py-2">ชนะ%</th><th class="text-right px-2 py-2">ค่าคาดหวัง</th></tr>
+          </thead>
+          <tbody>
+            ${r.byResistanceMethod.map(m => `
+              <tr class="border-b border-slate-800/60">
+                <td class="px-2 py-2">${esc(m.label)}</td>
+                <td class="px-2 py-2 text-right num">${m.n}</td>
+                <td class="px-2 py-2 text-right num">${m.winRate.toFixed(1)}%</td>
+                <td class="px-2 py-2 text-right num font-bold ${rColor(m.expectancy)}">${f3(m.expectancy)}R</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </section>` : ''}
+
+    <section class="card border-sky-800/60 bg-sky-950/20">
+      <h2 class="h-title mb-2">${hIcon('bulb', 'gold')}คำแนะนำจากข้อมูล</h2>
+      <div class="text-sm text-slate-200 leading-relaxed">${esc(r.recommendation)}</div>
+    </section>
+
+    <section class="card">
+      <h2 class="h-title mb-3">${hIcon('list')}รายการไม้ (${r.results.length} ไม้ล่าสุด)</h2>
+      <div class="overflow-x-auto max-h-96 overflow-y-auto">
+        <table class="w-full text-xs zebra">
+          <thead class="text-[10px] uppercase text-slate-400 border-b border-slate-700 sticky top-0 bg-slate-950">
+            <tr><th class="text-left px-2 py-2">เวลา</th><th class="text-left px-2 py-2">Ticker</th>
+            <th class="text-right px-2 py-2">คะแนน</th><th class="text-right px-2 py-2">Entry</th>
+            <th class="text-right px-2 py-2">Stop</th><th class="text-right px-2 py-2">Target</th>
+            <th class="text-center px-2 py-2">ผล</th><th class="text-right px-2 py-2">R</th>
+            <th class="text-right px-2 py-2">MFE</th><th class="text-right px-2 py-2">MAE</th></tr>
+          </thead>
+          <tbody>
+            ${r.results.map(x => {
+              const oc = { WIN:'bg-emerald-900 text-emerald-300', LOSS:'bg-red-900 text-red-300',
+                           UNDECIDED:'bg-slate-800 text-slate-400' }[x.outcome];
+              const ocLabel = { WIN:'ชนะ', LOSS:'แพ้', UNDECIDED:'ยังไม่ตัดสิน' }[x.outcome];
+              return `<tr class="border-b border-slate-800/60">
+                <td class="px-2 py-1.5 text-slate-500 num">${new Date(x.ts).toLocaleString('th-TH',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+                <td class="px-2 py-1.5"><b>${esc(x.symbol)}</b> <span class="text-slate-600">${esc(x.tf||'')}</span></td>
+                <td class="px-2 py-1.5 text-right num">${f2(x.score)}</td>
+                <td class="px-2 py-1.5 text-right num">${f2(x.entry)}</td>
+                <td class="px-2 py-1.5 text-right num text-red-400">${f2(x.stop)}</td>
+                <td class="px-2 py-1.5 text-right num text-emerald-400">${f2(x.target)}</td>
+                <td class="px-2 py-1.5 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-medium ${oc}">${ocLabel}</span></td>
+                <td class="px-2 py-1.5 text-right num font-bold ${rColor(x.r)}">${f2(x.r)}</td>
+                <td class="px-2 py-1.5 text-right num text-slate-400">${f2(x.mfe)}</td>
+                <td class="px-2 py-1.5 text-right num text-slate-400">${f2(x.mae)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card border-slate-700">
+      <h2 class="h-title mb-2">${hIcon('pin', 'gold')}ข้อจำกัดของการทดสอบนี้ (อ่านก่อนเชื่อตัวเลข)</h2>
+      <ul class="text-xs text-slate-400 list-disc pl-5 space-y-1">
+        ${r.limitations.map(l => `<li>${esc(l)}</li>`).join('')}
+      </ul>
+    </section>`;
+}
+
+$('btnRun').onclick = run;
+
+async function run() {
+  const w = $('window').value;
+  const ms = $('minScore').value;
+  $('status').textContent = 'กำลังวิเคราะห์… (ต้องดึงแท่งเทียนของทุกสัญญาณ อาจใช้เวลาสักครู่)';
+  $('btnRun').disabled = true;
+  try {
+    const url = `/api/backtest?window=${encodeURIComponent(w)}` + (ms !== '' ? `&minScore=${encodeURIComponent(ms)}` : '');
+    const r = await (await fetch(url)).json();
+    if (!r.ok) { $('status').textContent = 'ผิดพลาด: ' + (r.error || ''); return; }
+    render(r);
+    $('status').textContent = `เสร็จแล้ว — ประเมินได้ ${r.evaluated} ไม้`;
+  } catch (err) {
+    $('status').textContent = 'ผิดพลาด: ' + err.message;
+  } finally {
+    $('btnRun').disabled = false;
+  }
+}
+
+run();
+</script>
+</body>
+</html>

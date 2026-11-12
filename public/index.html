@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scalp Scanner — แดชบอร์ด</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Noto+Serif+Thai:wght@500;600&display=swap">
+<link rel="stylesheet" href="/theme.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="/theme.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="min-h-screen">
+
+<!-- ═══ แบนเนอร์เตือนโหมดข้อมูลจำลอง ═══ -->
+<div id="mockBanner" class="hidden bg-fuchsia-900 border-b border-fuchsia-700 px-4 py-2 text-center text-sm font-medium text-fuchsia-200">
+  ⚠️ โหมดข้อมูลจำลอง (MOCK_DATA=true) — ตัวเลขทั้งหมดเป็นข้อมูลสังเคราะห์ ไม่ใช่ราคาจริง ห้ามใช้ตัดสินใจเทรด
+</div>
+
+<!-- ═══ แบนเนอร์เตือนข้อมูลไม่อัปเดต (สเปกข้อ 5) ═══ -->
+<div id="staleBanner" class="hidden bg-red-900 border-b border-red-700 px-4 py-2 text-center text-sm text-red-200"></div>
+
+<!-- ═══ แถบบน ═══ -->
+<header class="topbar">
+  <div class="max-w-[1800px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+    <a href="/" class="flex items-center gap-3">
+      <span class="brand-mark" data-icon="gem"></span>
+      <span>
+        <span class="brand-name block">Scalp Scanner</span>
+        <span class="brand-tag block">เครื่องมือช่วยคัดกรองหุ้นอเมริกาและหุ้นไทย — ไม่ใช่คำแนะนำการลงทุน</span>
+      </span>
+    </a>
+    <nav class="flex flex-wrap items-center gap-1.5">
+      <span class="conn-pill mr-1" title="สถานะการเชื่อมต่อ">
+        <span id="connDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
+        <span id="connText">กำลังเชื่อมต่อ…</span>
+      </span>
+      <a href="/" class="nav-pill active"><span data-icon="layout"></span>แดชบอร์ด</a>
+      <a href="/backtest" class="nav-pill"><span data-icon="chart"></span>Backtest</a>
+      <a href="/settings" class="nav-pill"><span data-icon="sliders"></span>Settings</a>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-[1800px] mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+  <!-- ═══ แผงควบคุม: ปุ่ม (สเปกข้อ 2) + แถบสถานะระบบ ═══ -->
+  <section class="card card-pad">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button id="btnStart" class="btn btn-lg btn-primary"><span data-icon="play"></span>Start Scanner</button>
+        <button id="btnStop" class="btn btn-lg btn-idle"><span data-icon="pause"></span>Stop Scanner</button>
+        <button id="btnScanNow" class="btn btn-lg btn-plum"><span data-icon="refresh"></span>Scan Now</button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnNotify" class="btn btn-sm btn-ghost">🔔 เปิดการแจ้งเตือนเบราว์เซอร์</button>
+        <label class="check-pill">
+          <input id="chkSound" type="checkbox" checked class="w-4 h-4">
+          เสียงเตือน
+        </label>
+        <button id="btnTestSound" class="btn btn-sm btn-ghost"><span data-icon="volume"></span>ทดสอบเสียง</button>
+      </div>
+    </div>
+
+    <div class="status-grid mt-5 pt-5 border-t border-slate-800">
+      <div class="status-item">
+        <span class="status-label">สถานะ</span>
+        <span class="status-value"><span id="runDot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span><b id="runText">หยุดอยู่</b></span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">หุ้นอเมริกา</span>
+        <span class="status-value"><b id="marketText">—</b></span>
+      </div>
+      <!-- ★ หุ้นไทย -->
+      <div class="status-item">
+        <span class="status-label">หุ้นไทย · เวลาไทย</span>
+        <span class="status-value"><b id="thMarketText">—</b><span id="thTime" class="num text-slate-500 text-xs ml-1.5"></span></span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Session</span>
+        <span class="status-value"><b id="sessionText" class="truncate">—</b></span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">เวลานิวยอร์ก</span>
+        <span class="status-value"><b id="nyTime" class="num">—</b></span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">สแกนล่าสุด</span>
+        <span class="status-value"><b id="lastScan" class="num">—</b></span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">รอบถัดไป</span>
+        <span class="status-value"><b id="nextScan" class="num">—</b></span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">ภาวะตลาด</span>
+        <span class="status-value"><b id="regimeText">—</b></span>
+      </div>
+    </div>
+    <div id="marketReason" class="hidden mt-4 text-xs rounded-xl px-4 py-2.5 bg-amber-950 border border-amber-800 text-amber-300"></div>
+  </section>
+
+  <!-- ═══ การ์ดสรุป (สเปกข้อ 1) ═══ -->
+  <section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+    <div class="stat" style="--accent:#B7A6AD">
+      <div class="stat-label">หุ้นที่สแกน</div>
+      <div id="sumScanned" class="stat-value num">0</div>
+    </div>
+    <div class="stat" style="--accent:#3C9A76">
+      <div class="stat-label">สัญญาณที่เจอ</div>
+      <div id="sumSignals" class="stat-value num text-emerald-400">0</div>
+    </div>
+    <div class="stat" style="--accent:#B7688A">
+      <div class="stat-label">ผ่านด่านคุณภาพ</div>
+      <div id="sumPassed" class="stat-value num text-sky-400">0</div>
+    </div>
+    <div class="stat" style="--accent:#C29645">
+      <div class="stat-label">แจ้งเตือนแล้ว</div>
+      <div id="sumAlerts" class="stat-value num text-amber-400">0</div>
+    </div>
+    <div class="stat" style="--accent:#D2526A">
+      <div class="stat-label">ข้อมูลไม่อัปเดต</div>
+      <div id="sumStale" class="stat-value num text-red-400">0</div>
+    </div>
+    <div class="stat" style="--accent:#9D6A97">
+      <div class="stat-label">ภาวะตลาด</div>
+      <div id="sumRegime" class="stat-value sm">—</div>
+      <div id="sumRegimeNote" class="stat-note"></div>
+    </div>
+    <!-- ★ v2 -->
+    <div class="stat" style="--accent:#9272B6">
+      <div class="stat-label">ไม้ที่เปิดอยู่</div>
+      <div id="sumOpenTrades" class="stat-value num text-violet-400">0</div>
+      <div id="sumOpenLimit" class="stat-note"></div>
+    </div>
+    <div class="stat" style="--accent:#C9869F">
+      <div class="stat-label">R สะสมวันนี้</div>
+      <div id="sumDayR" class="stat-value num">0.00</div>
+      <div id="sumDayNote" class="stat-note"></div>
+    </div>
+  </section>
+
+  <!-- ═══ Watchlist (สเปกข้อ 3) ═══ -->
+  <section class="card card-pad">
+    <h2 class="h-title mb-4">
+      <span class="h-icon" data-icon="star"></span>
+      รายการเฝ้าดู
+      <span id="wlCount" class="sub"></span>
+    </h2>
+    <div class="flex flex-wrap gap-2 mb-3">
+      <input id="tickerInput" type="text" placeholder="พิมพ์ Ticker เช่น NVDA, TSLA · หุ้นไทยต่อท้าย .BK เช่น PTT.BK, DELTA.BK (คั่นด้วย comma ได้)"
+             class="field flex-1 min-w-[260px]">
+      <button id="btnAdd" class="btn btn-primary px-6">+ เพิ่ม</button>
+      <button id="btnResetAlerts" class="btn btn-ghost"><span data-icon="rotate"></span>รีเซ็ตการเตือนทั้งหมด</button>
+    </div>
+    <div id="addResult" class="hidden mb-3 text-sm rounded-xl px-4 py-2.5 border"></div>
+    <div id="wlChips" class="flex flex-wrap gap-2"></div>
+  </section>
+
+  <!-- ═══ ★ v2.1: ค่าเงิน USD/THB ═══ -->
+  <section id="fxCard" class="card overflow-hidden">
+    <div class="card-head">
+      <h2 class="h-title"><span class="h-icon gold" data-icon="exchange"></span>ค่าเงิน <span id="fxPairLabel" class="sub"></span></h2>
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span id="fxSource" class="text-slate-500 mr-1"></span>
+        <!-- ★ กฎแจ้งเตือนค่าเงิน -->
+        <button id="btnFxRule" type="button" class="rule-chip" title="ตั้งค่าเกณฑ์แจ้งเตือนค่าเงิน และส่งทางไหน">
+          <span data-icon="bell"></span><span id="fxRuleChip">กฎแจ้งเตือน</span>
+        </button>
+        <button id="btnFxCheck" class="btn btn-xs btn-ghost"><span data-icon="refresh"></span>ตรวจเดี๋ยวนี้</button>
+        <button id="btnFxReset" class="btn btn-xs btn-ghost" title="ให้เตือนซ้ำได้อีกครั้ง"><span data-icon="rotate"></span>รีเซ็ตการเตือน</button>
+      </div>
+    </div>
+
+    <!-- ★ เลือกสกุลเงิน: กดเพื่อสลับดู · ✕ เลิกเฝ้าดู · "+ เพิ่มสกุลเงิน" เพิ่มคู่ใหม่ -->
+    <div id="fxTabs" class="px-5 sm:px-6 py-3.5 flex flex-wrap items-center gap-2 border-b border-slate-800 inset"></div>
+    <div id="fxRulePanel" class="rule-panel hidden"></div>
+
+    <div id="fxError" class="hidden px-6 py-2.5 bg-red-950 border-b border-red-800 text-red-300 text-sm"></div>
+
+    <div id="fxBody" class="p-5 sm:px-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- เรตปัจจุบัน + กราฟย่อ -->
+      <div class="lg:col-span-1">
+        <div class="eyebrow mb-1">เรตกลางตลาดตอนนี้</div>
+        <div id="fxRate" class="text-4xl font-semibold num tracking-tight text-slate-50">—</div>
+        <div id="fxUnit" class="text-xs text-slate-400 mt-0.5"></div>
+        <div id="fxRange" class="text-[11px] text-slate-500 mt-1.5 leading-relaxed"></div>
+        <svg id="fxSpark" viewBox="0 0 300 60" preserveAspectRatio="none" class="w-full h-16 mt-3"></svg>
+        <div id="fxEff" class="text-[11px] text-slate-400 mt-2"></div>
+      </div>
+      <!-- สองทิศทาง -->
+      <div id="fxDirs" class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+    </div>
+
+    <div class="px-5 sm:px-6 pb-5 text-[11px] text-slate-500 leading-relaxed">
+      ⚠️ คะแนนบอกว่า<b>เรตวันนี้ถูกหรือแพงเทียบกับปีที่ผ่านมา</b> ไม่ใช่การพยากรณ์ว่าพรุ่งนี้จะขึ้นหรือลง ·
+      อัตราแลกเปลี่ยนเคลื่อนไหวใกล้เคียงการสุ่ม การอยู่จุดต่ำสุดของปีไม่ได้แปลว่าจะเด้งขึ้น ·
+      เรตที่แสดงเป็นเรตกลางตลาด ไม่ใช่เรตที่ธนาคารหรือร้านแลกเงินให้จริง
+    </div>
+  </section>
+
+  <!-- ═══ ★ v2: ไม้ที่เปิดอยู่ (ข้อ P1 ที่ค้างจาก v1) ═══ -->
+  <section class="card overflow-hidden">
+    <div class="card-head">
+      <h2 class="h-title"><span class="h-icon plum" data-icon="book"></span>ไม้ที่เปิดอยู่
+        <span id="trCount" class="sub"></span>
+      </h2>
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="text-slate-500">สมุดบันทึก ไม่ได้ส่งคำสั่งซื้อขายจริง</span>
+        <button id="btnClearClosed" class="btn btn-xs btn-ghost"><span data-icon="trash"></span>ล้างประวัติที่ปิดแล้ว</button>
+      </div>
+    </div>
+    <div id="trHalt" class="hidden px-6 py-2.5 bg-red-950 border-b border-red-800 text-red-300 text-sm flex items-center justify-between gap-3">
+      <span id="trHaltMsg"></span>
+      <button id="btnResumeTrading" class="btn btn-xs btn-ghost-danger shrink-0">ยกเลิกการหยุด</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm sticky-head lux">
+        <thead class="text-[11px] uppercase text-slate-500">
+          <tr>
+            <th class="text-left  px-4 py-3">Ticker</th>
+            <th class="text-right px-3 py-3">เข้าที่</th>
+            <th class="text-right px-3 py-3">ราคาล่าสุด</th>
+            <th class="text-right px-3 py-3">Stop</th>
+            <th class="text-right px-3 py-3">เป้า</th>
+            <th class="text-right px-3 py-3">หุ้น</th>
+            <th class="text-right px-3 py-3">R</th>
+            <th class="text-right px-3 py-3">กำไร/ขาดทุน</th>
+            <th class="text-left  px-3 py-3">สถานะ</th>
+            <th class="text-right px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody id="tradesBody"></tbody>
+      </table>
+    </div>
+    <div id="trEmpty" class="px-6 py-5 text-sm text-slate-500 leading-relaxed">
+      ยังไม่มีไม้ที่เปิดอยู่ — กดปุ่ม <span class="text-violet-400 font-medium">เปิดไม้</span> ในตารางหุ้นด้านล่างเมื่อคุณเข้าไม้จริงแล้ว
+      เพื่อให้ระบบคุม stop / ขายบางส่วน / ลาก stop และนับ R ให้
+    </div>
+    <div id="trClosedWrap" class="hidden border-t border-slate-800">
+      <div class="px-6 pt-3 pb-2 eyebrow">ปิดไปแล้ววันนี้</div>
+      <div id="trClosed" class="px-6 pb-4 flex flex-wrap gap-2 text-xs"></div>
+    </div>
+  </section>
+
+  <!-- ═══ ตารางหุ้น (สเปกข้อ 1) ═══ -->
+  <section class="card overflow-hidden">
+    <div class="card-head">
+      <h2 class="h-title"><span class="h-icon" data-icon="trending"></span>ตารางหุ้น <span class="sub">เรียงตามคะแนนมากไปน้อย · กดแถวเพื่อดู breakdown</span></h2>
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- ★ เลือกตลาด -->
+        <div id="mktTabs" class="seg" role="radiogroup" aria-label="เลือกตลาด">
+          <label><input type="radio" name="mktTab" value="all" checked>ทั้งหมด <span class="num text-slate-500" data-mkt-count="all"></span></label>
+          <label><input type="radio" name="mktTab" value="US">หุ้นอเมริกา <span class="num text-slate-500" data-mkt-count="US"></span></label>
+          <label><input type="radio" name="mktTab" value="TH">หุ้นไทย <span class="num text-slate-500" data-mkt-count="TH"></span></label>
+        </div>
+        <label class="check-pill">
+          <input id="chkOnlyPassed" type="checkbox" class="w-3.5 h-3.5">
+          แสดงเฉพาะที่ผ่านด่าน
+        </label>
+        <label class="check-pill">
+          <input id="chkOnlyWatch" type="checkbox" class="w-3.5 h-3.5">
+          เฉพาะรายการเฝ้าดู
+        </label>
+        <!-- ★ กฎแจ้งเตือนคะแนน — กดเพื่อเปิดแผงตั้งค่า -->
+        <button id="btnScoreRule" type="button" class="rule-chip" title="ตั้งค่าว่าคะแนนเท่าไหร่ถึงจะแจ้งเตือน และส่งทางไหน">
+          <span data-icon="bell"></span><span id="scoreRuleChip">กฎแจ้งเตือน</span>
+        </button>
+      </div>
+    </div>
+    <div id="scoreRulePanel" class="rule-panel hidden"></div>
+    <div class="overflow-x-auto max-h-[62vh] overflow-y-auto">
+      <table class="w-full text-sm sticky-head lux">
+        <thead class="text-[11px] uppercase text-slate-500">
+          <tr>
+            <th class="text-left  px-4 py-3">Ticker</th>
+            <th class="text-right px-2 py-3">ราคา</th>
+            <th class="text-right px-2 py-3">%เปลี่ยน</th>
+            <th class="text-right px-2 py-3">Volume</th>
+            <th class="text-right px-2 py-3">RVOL</th>
+            <th class="text-right px-2 py-3">แนวต้าน</th>
+            <th class="text-right px-2 py-3">ราคาเป้าหมาย</th>
+            <th class="text-left  px-2 py-3">ที่มาเป้า</th>
+            <th class="text-right px-2 py-3">R:R</th>
+            <th class="text-right px-2 py-3">Exp.Move</th>
+            <th class="text-right px-2 py-3">ขนาดไม้</th>
+            <th class="text-right px-2 py-3">คะแนน</th>
+            <th class="text-left  px-3 py-3">สถานะ</th>
+            <th class="text-right px-4 py-3">ไม้</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div id="emptyState" class="p-10 text-center text-slate-500 text-sm">
+      ยังไม่มีข้อมูล — เพิ่มหุ้นในรายการเฝ้าดู แล้วกด <b class="text-sky-400">Start Scanner</b> หรือ <b class="text-sky-400">Scan Now</b>
+    </div>
+  </section>
+
+  <!-- การ์ด "Log แบบ realtime" และ "ประวัติการแจ้งเตือน" เอาออกจากหน้านี้ตามที่ผู้ใช้ขอ
+       server ยังบันทึกทั้งสองอย่างตามเดิม (log → หน้าต่าง server / logs/server.log · ประวัติ → data/alerts-history.json)
+       app.js ข้ามการวาดให้เองเมื่อไม่มี element — ใส่ section ที่มี id logBox / alertHistBox กลับมาก็แสดงได้ทันที -->
+
+  <!-- ═══ สถานะแหล่งข้อมูล (สเปกข้อ 5.5) ═══ -->
+  <section class="card card-pad">
+    <h2 class="h-title mb-4"><span class="h-icon" data-icon="database"></span>สถานะแหล่งข้อมูล + โควตาคงเหลือ</h2>
+    <div id="providerGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+  </section>
+
+  <!-- ═══ Disclaimer (สเปกข้อ 6) ═══ -->
+  <footer class="notice-gold p-5 text-xs leading-relaxed">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="h-icon gold !w-7 !h-7" data-icon="shield"></span>
+      <b class="text-sm font-serif">คำเตือนความเสี่ยง</b>
+    </div>
+    เครื่องมือนี้เป็น <b>เครื่องมือช่วยคัดกรองหุ้น (screening tool)</b> เท่านั้น <b>ไม่ใช่คำแนะนำการลงทุน</b>
+    และไม่ใช่การรับประกันผลตอบแทนใดๆ<br>
+    • คะแนนและ "Expected Move" คำนวณจากค่าสถิติย้อนหลัง (ATR) ซึ่ง<b>ไม่ได้บอกอนาคต</b> ราคาอาจเคลื่อนไหวมากหรือน้อยกว่านั้น หรือไปคนละทางก็ได้<br>
+    • ราคาเป้าหมายที่คำนวณจากแนวต้าน −0.1% คือการ<b>เข้าก่อนที่ราคาจะเบรกจริง</b> ซึ่งจำนวนมากจะกลายเป็นการเด้งกลับ ต้องมีวอลุ่มยืนยันประกอบ<br>
+    • ข้อมูลมาจาก API ฟรี อาจล่าช้า ไม่ครบ หรือผิดพลาดได้ <b>ควรตรวจสอบกับโบรกเกอร์ก่อนตัดสินใจทุกครั้ง</b><br>
+    • การซื้อขายหุ้นระยะสั้นมีความเสี่ยงสูงที่จะสูญเสียเงินต้น ผู้ใช้รับความเสี่ยงเองทั้งหมด
+  </footer>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

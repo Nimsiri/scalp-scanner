@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scalp Scanner — ตั้งค่า</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Noto+Serif+Thai:wght@500;600&display=swap">
+<link rel="stylesheet" href="/theme.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="/theme.js"></script>
+<style>
+  .card { padding: 22px 24px; }
+  .card > h2.h-title { margin-bottom: 16px; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ═══ แถบบน ═══ -->
+<header class="topbar">
+  <div class="max-w-[1800px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+    <a href="/" class="flex items-center gap-3">
+      <span class="brand-mark" data-icon="gem"></span>
+      <span>
+        <span class="brand-name block">Scalp Scanner</span>
+        <span class="brand-tag block">เครื่องมือช่วยคัดกรองหุ้นอเมริกาและหุ้นไทย — ไม่ใช่คำแนะนำการลงทุน</span>
+      </span>
+    </a>
+    <nav class="flex flex-wrap items-center gap-1.5">
+      <a href="/" class="nav-pill"><span data-icon="layout"></span>แดชบอร์ด</a>
+      <a href="/backtest" class="nav-pill"><span data-icon="chart"></span>Backtest</a>
+      <a href="/settings" class="nav-pill active"><span data-icon="sliders"></span>Settings</a>
+    </nav>
+  </div>
+</header>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+  <div>
+    <h1 class="page-title">ตั้งค่า</h1>
+    <p class="page-sub">ปรับเกณฑ์การสแกน ความเสี่ยง และการแจ้งเตือน · บันทึกแล้วมีผลทันที ไม่ต้องรีสตาร์ท</p>
+  </div>
+
+  <div id="saveBar" class="hidden sticky top-[84px] z-30 rounded-xl border px-4 py-3 text-sm shadow-lg"></div>
+
+  <!-- ═══ รอบการทำงาน ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon" data-icon="timer"></span>รอบการทำงาน</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <label class="fld">
+        <span>ช่วงเวลาซื้อขาย (session)</span>
+        <select id="session">
+          <option value="regular">regular — 09:30-16:00 ET (เวลาทำการปกติ)</option>
+          <option value="pre">pre — 04:00-09:30 ET (ก่อนเปิดตลาด)</option>
+          <option value="post">post — 16:00-20:00 ET (หลังปิดตลาด)</option>
+          <option value="all">all — 04:00-20:00 ET (ทุกช่วง)</option>
+        </select>
+        <div class="hint">ใช้ตัดสินว่า "ตลาดเปิด" หมายถึงช่วงไหน · จะข้ามรอบตอนนอกช่วงหรือไม่ ขึ้นกับตัวเลือกด้านล่าง</div>
+      </label>
+      <label class="fld">
+        <span>Timeframe ที่ใช้วิเคราะห์</span>
+        <select id="timeframes" multiple size="4" class="!h-auto">
+          <option value="5m">5 นาที</option>
+          <option value="15m">15 นาที</option>
+          <option value="1m">1 นาที</option>
+          <option value="30m">30 นาที</option>
+          <option value="1h">1 ชั่วโมง</option>
+        </select>
+        <div class="hint">กด Ctrl (หรือ Cmd) ค้างเพื่อเลือกหลายอัน · แต่ละ timeframe = 1 แถวในตาราง และเพิ่มจำนวน API call</div>
+      </label>
+      <label class="fld">
+        <span>สแกนทุกกี่วินาที</span>
+        <input id="scanIntervalSec" type="number" min="10" max="3600" step="5">
+        <div class="hint">ยิ่งถี่ยิ่งเปลืองโควตา API · แนะนำ 60 วินาทีขึ้นไป (ต่ำสุด 10)</div>
+      </label>
+    </div>
+    <label class="flex items-start gap-2 mt-4 text-sm cursor-pointer">
+      <input id="scanWhenClosed" type="checkbox" class="accent-sky-600 mt-0.5 w-4 h-4">
+      <span><b>สแกนต่อแม้ตลาดปิด</b>
+        <div class="hint">เปิด (default) = สแกนต่อ เห็นราคาล่าสุดก่อนปิด และทดลองระบบได้ตอนกลางวันไทย<br>
+        ปิด = ข้ามรอบไปเลยเมื่ออยู่นอกช่วง session ที่เลือก ประหยัดโควตา API</div>
+      </span>
+    </label>
+  </section>
+
+  <!-- ═══ เงินทุนและความเสี่ยง ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon gold" data-icon="wallet"></span>เงินทุนและความเสี่ยง</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <label class="fld"><span>เงินทุน (ดอลลาร์ · หุ้นอเมริกา)</span>
+        <input id="accountSize" type="number" min="1" step="100">
+        <div class="hint">ใช้คำนวณขนาดไม้ (position size)</div>
+      </label>
+      <label class="fld"><span>ความเสี่ยงต่อไม้ (%)</span>
+        <input id="riskPct" type="number" min="0.01" max="100" step="0.1">
+        <div class="hint">เงินที่ยอมเสียถ้าโดน stop · 1% ของทุนเป็นค่าที่ใช้กันทั่วไป</div>
+      </label>
+      <label class="fld"><span>R:R ขั้นต่ำ (กรองสัญญาณ)</span>
+        <input id="minRR" type="number" min="0" max="20" step="0.1">
+        <div class="hint">สัญญาณที่ R:R ต่ำกว่านี้จะถูกกรองออก (สเปกกำหนด 1.5)</div>
+      </label>
+      <label class="fld"><span>ตัวคูณ ATR สำหรับ stop</span>
+        <input id="atrStopMult" type="number" min="0.1" max="10" step="0.05">
+        <div class="hint">ระยะ stop สูงสุด = ATR × ค่านี้ · ค่าน้อย = stop แคบ R:R ดีขึ้น แต่โดนเคาะออกง่ายขึ้น</div>
+      </label>
+      <label class="fld"><span>ระยะ stop ขั้นต่ำ (เท่าของ ATR)</span>
+        <input id="minStopAtr" type="number" min="0.05" max="5" step="0.05">
+        <div class="hint">พื้นขั้นต่ำ กัน stop แคบจนโดนสัญญาณรบกวนเคาะออก</div>
+      </label>
+      <label class="fld"><span>ขยายเป้าเลยแนวต้าน (เท่าของ ATR)</span>
+        <input id="targetExtAtr" type="number" min="0" max="5" step="0.05">
+        <div class="hint">ใช้เมื่อหน่วยของไม้เป็น intraday เท่านั้น · การเล่นจริงคือเข้าก่อนแนวต้าน → แนวต้านแตก → ราคาวิ่งต่อ</div>
+      </label>
+    </div>
+
+    <!-- ★ v2 -->
+    <div class="mt-5 pt-4 border-t border-slate-800">
+      <h3 class="font-semibold text-sm mb-1">📏 หน่วยของไม้ (v2 — ตัวที่กำหนดว่ากำไรต่อไม้จะใหญ่แค่ไหน)</h3>
+      <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+        v1 วัดทั้ง stop และเป้าด้วย ATR ของแท่ง 5 นาที ซึ่งเป็นหน่วยที่เล็กมาก
+        ตัวอย่างจริงจากไฟล์ประวัติ: AAPL ที่ $171.65 ได้ stop $0.36 = <b>0.21% ของราคา</b> และเป้าห่างแค่ 0.56%
+        ทั้งไม้จึงอยู่ในกรอบสัญญาณรบกวนของแท่งเดียว และค่า spread อย่างเดียวกินกำไรขั้นต้นไป 15%
+        <br>v2 วัดด้วย <b>ATR รายวัน</b> แทน — ถามว่า "หุ้นตัวนี้ปกติวิ่งวันละเท่าไหร่" แล้วตั้ง stop และเป้าเป็นเศษส่วนของนั้น
+        เป็นการยืดกรอบเวลาของไม้จาก "นาที" เป็น "ชั่วโมงถึงวัน"
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <label class="fld"><span>หน่วยที่ใช้วัด stop/เป้า</span>
+          <select id="tradeAtrBasis">
+            <option value="daily">ATR รายวัน (แนะนำ)</option>
+            <option value="intraday">ATR ของ timeframe ที่สแกน (พฤติกรรมแบบ v1)</option>
+          </select>
+          <div class="hint">เลือก intraday ถ้าอยากกลับไปเล่นไม้สั้นมากแบบเดิม</div>
+        </label>
+        <label class="fld"><span>stop = กี่เท่าของ ATR รายวัน</span>
+          <input id="stopAtrDaily" type="number" min="0.05" max="5" step="0.05">
+          <div class="hint">0.35 บนหุ้นที่ ATR รายวัน 1.8% ≈ stop 0.63% · ยิ่งมาก ไม้ยิ่งทนแต่จำนวนหุ้นยิ่งน้อย</div>
+        </label>
+        <label class="fld"><span>เป้า = กี่เท่าของ ATR รายวัน</span>
+          <input id="targetAtrDaily" type="number" min="0.1" max="10" step="0.1">
+          <div class="hint">ถ้ายังมีแนวต้านขวางอยู่ ระบบจะใช้แค่ครึ่งหนึ่งของระยะนี้บวกจากแนวต้าน</div>
+        </label>
+        <label class="fld"><span>ระยะ stop ขั้นต่ำ (% ของราคา)</span>
+          <input id="minStopPct" type="number" min="0.05" max="20" step="0.05">
+          <div class="hint">พื้นแข็ง ห้าม stop แคบกว่านี้ไม่ว่าคำนวณได้เท่าไหร่ — ตัวกันไม้จิ๋วโดยตรง</div>
+        </label>
+        <label class="fld"><span>ต้นทุนคอมมิชชัน + slippage (% ไป-กลับ)</span>
+          <input id="costPct" type="number" min="0" max="5" step="0.01">
+          <div class="hint">ระบบจะบวก spread จริงเข้าไปอีก แล้วหักออกจากกำไรก่อนคิด R:R → ไม้ที่ต้นทุนกินหมดตกด่านเอง</div>
+        </label>
+        <label class="fld"><span>ระยะถึงเป้าขั้นต่ำ (%)</span>
+          <input id="minTargetMovePct" type="number" min="0" max="50" step="0.1">
+          <div class="hint">ถึง R:R จะสวย ถ้าเป้าห่างแค่ 0.3% ก็คือเล่นอยู่ในสัญญาณรบกวน</div>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ★ v2: ด่านแนวโน้มระยะกลาง ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon jade" data-icon="trending"></span>ด่านแนวโน้มระยะกลาง (Trend Template)</h2>
+    <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+      v1 ตัดสินใจจากแท่ง 5 นาทีล้วนๆ ไม่มีที่ไหนถามว่าหุ้นอยู่ในขาขึ้นหรือขาลงในกรอบใหญ่
+      ผลที่เห็นจริงในไฟล์ประวัติ: AAPL ได้ 66.7 คะแนนและถูกนับเป็นสัญญาณ ทั้งที่<b>ลง 1.2% และอยู่ใต้ VWAP</b>
+      <br>เกณฑ์ 6 ข้อนี้ปรับมาจาก Trend Template ของ Mark Minervini · เป็น<b>ด่านแข็ง ไม่ใช่คะแนน</b>
+      เพราะถ้าเป็นคะแนน หุ้นแนวโน้มแย่ที่วอลุ่มพุ่งแรงก็ยังผ่านได้อยู่ดี
+      <br><span class="text-amber-400">ถ้าดึงแท่งรายวันไม่ได้ (ต้องมี ~200 แท่ง) ระบบจะข้ามด่านนี้และติดคำเตือน ไม่ใช่ตัดหุ้นทิ้ง</span>
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <label class="fld"><span>เปิดใช้ด่านแนวโน้ม</span>
+        <select id="requireTrendTemplate"><option value="true">เปิด</option><option value="false">ปิด</option></select>
+        <div class="hint">ปิดแล้วจะกลับไปได้สัญญาณเยอะเหมือน v1 แต่รวมไม้ที่สวนแนวโน้มด้วย</div>
+      </label>
+      <label class="fld"><span>ต้องผ่านกี่ข้อจาก 6</span>
+        <input id="minTrendChecks" type="number" min="0" max="6" step="1">
+        <div class="hint">5 = เข้มพอสมควร · 6 = ต้นฉบับของ Minervini · 4 = ผ่อนปรน</div>
+      </label>
+      <label class="fld"><span>คะแนน RS ขั้นต่ำ (0-100)</span>
+        <input id="minRsScore" type="number" min="0" max="100" step="1">
+        <div class="hint">คำนวณจากผลตอบแทน 1/3/6 เดือนเทียบดัชนีอ้างอิง · 50 = เท่าตลาด · ไม่ใช่ IBD RS Rating</div>
+      </label>
+      <label class="fld"><span>ดัชนีอ้างอิงสำหรับ RS</span>
+        <input id="rsBenchmark" type="text" maxlength="10" placeholder="SPY">
+        <div class="hint">SPY สำหรับตลาดรวม · QQQ ถ้าเล่นหุ้นเทคเป็นหลัก</div>
+      </label>
+      <label class="fld"><span>ห้ามซื้อใต้ VWAP ของวัน</span>
+        <select id="requireAboveVwap"><option value="true">ห้าม</option><option value="false">อนุญาต</option></select>
+        <div class="hint">อยู่ใต้ VWAP = คนที่ซื้อวันนี้ส่วนใหญ่ติดดอย ทุกการเด้งจะเจอแรงขายรอเท่าทุน</div>
+      </label>
+    </div>
+  </section>
+
+  <!-- ═══ ★ v2: จังหวะเข้าไม้ ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon" data-icon="target"></span>จังหวะเข้าไม้</h2>
+    <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+      แผนงาน v1 เขียนไว้เองว่าการเข้าที่ "แนวต้าน × 0.999" คือการ front-run breakout และ
+      "<b>ประมาณครึ่งหนึ่งจะกลายเป็นการเด้งกลับ</b>" — ครึ่งหนึ่งที่ตายที่แนวต้านโดยไม่เคยได้กำไรเลย
+      คือตัวถ่วงค่าเฉลี่ยกำไรต่อไม้โดยตรง
+      <br>โหมด <b>confirm</b> ยอมเสียราคาเข้าไปเล็กน้อย แลกกับการรู้ว่าแนวต้านแตกจริง และบังคับว่าแท่งที่ทะลุต้องมีวอลุ่มตามมา
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <label class="fld"><span>โหมดเข้าไม้</span>
+        <select id="entryMode">
+          <option value="confirm">confirm — รอทะลุจริงพร้อมวอลุ่ม (แนะนำ)</option>
+          <option value="anticipate">anticipate — เข้าก่อนแนวต้าน (แบบ v1)</option>
+        </select>
+      </label>
+      <label class="fld"><span>ระยะยืนยันเหนือแนวต้าน (%)</span>
+        <input id="confirmOffsetPct" type="number" min="0" max="5" step="0.01">
+        <div class="hint">โหมด confirm เตือนเมื่อราคาขึ้นเหนือแนวต้านไปเท่านี้</div>
+      </label>
+      <label class="fld"><span>วอลุ่มแท่งเบรกขั้นต่ำ (เท่า)</span>
+        <input id="breakoutRvolMin" type="number" min="0" max="20" step="0.1">
+        <div class="hint">วอลุ่มแท่งล่าสุด ÷ ค่าเฉลี่ย 20 แท่งก่อนหน้า · ทะลุโดยไม่มีเงินตามมามักย้อนกลับ</div>
+      </label>
+    </div>
+  </section>
+
+  <!-- ═══ ★ v2: การจัดการไม้ที่เปิดอยู่ ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon plum" data-icon="book"></span>การจัดการไม้ที่เปิดอยู่</h2>
+    <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+      ระบบนี้เป็น<b>สมุดบันทึก</b> ไม่ได้ส่งคำสั่งซื้อขายจริงและไม่เชื่อมโบรกเกอร์ — คุณกดเอง ระบบคิดเลขและเตือนจังหวะให้
+      <br>ค่าเริ่มต้น "ถึงเป้าแล้วออก" ปิดอยู่ เพราะเป้าในระบบนี้มีไว้ตอบว่า<i>ไม้นี้คุ้มจะเข้าไหม</i> (ใช้กรอง R:R)
+      การออกจริงใช้การลาก stop ไม้ที่วิ่งแรงจึงมีโอกาสโตเกินเป้าได้ — ซึ่งเป็นที่มาของกำไรก้อนใหญ่
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <label class="fld"><span>เปิดระบบคุมไม้</span>
+        <select id="trackTrades"><option value="true">เปิด</option><option value="false">ปิด</option></select>
+      </label>
+      <label class="fld"><span>ไม้ที่เปิดพร้อมกันสูงสุด</span>
+        <input id="maxOpenTrades" type="number" min="1" max="50" step="1">
+      </label>
+      <label class="fld"><span>ลิมิตขาดทุนต่อวัน (R)</span>
+        <input id="dailyLossLimitR" type="number" min="0.5" max="50" step="0.5">
+        <div class="hint">ถึงลิมิตแล้วหยุดเปิดไม้ใหม่ · ไม้ที่เปิดอยู่ยังถูกคุม stop ตามปกติ</div>
+      </label>
+      <label class="fld"><span>ขายบางส่วนที่กี่ R</span>
+        <input id="tp1R" type="number" min="0.2" max="10" step="0.1">
+      </label>
+      <label class="fld"><span>ขายกี่ % ที่ TP1</span>
+        <input id="tp1Pct" type="number" min="0" max="100" step="5">
+        <div class="hint">ที่เหลือปล่อยให้วิ่งต่อด้วย trailing stop</div>
+      </label>
+      <label class="fld"><span>ตัวคูณ ATR สำหรับลาก stop</span>
+        <input id="trailAtrMult" type="number" min="0.3" max="10" step="0.1">
+        <div class="hint">หลัง TP1: stop = จุดสูงสุด − (ATR ของ timeframe × ค่านี้)</div>
+      </label>
+      <label class="fld"><span>Time stop (นาที)</span>
+        <input id="timeStopMin" type="number" min="1" max="1440" step="5">
+        <div class="hint">ผ่านไปเท่านี้แล้วยังไม่ถึง +0.5R ให้ออก — เงินจมไม่ใช่เงินทำงาน</div>
+      </label>
+      <label class="fld"><span>เลื่อน stop มาพ้นทุนหลัง TP1</span>
+        <select id="breakevenAfterTp1"><option value="true">เลื่อน</option><option value="false">ไม่เลื่อน</option></select>
+      </label>
+      <label class="fld"><span>ถึงเป้าแล้วออกทั้งหมด</span>
+        <select id="exitAtTarget"><option value="false">ไม่ออก — ใช้ trailing stop (แนะนำ)</option><option value="true">ออก</option></select>
+      </label>
+      <label class="fld"><span>ออกเมื่อหลุด EMA</span>
+        <select id="exitOnEmaLost"><option value="true">ออก</option><option value="false">ไม่ออก</option></select>
+        <div class="hint">ก่อน TP1 ใช้ EMA5 · หลัง TP1 ผ่อนเป็น EMA15 เพื่อให้ไม้มีที่หายใจ</div>
+      </label>
+      <label class="fld"><span>ออกเมื่อหลุด VWAP</span>
+        <select id="exitOnVwapLost"><option value="true">ออก</option><option value="false">ไม่ออก</option></select>
+      </label>
+      <label class="fld"><span>เสนอให้เติมไม้เมื่อกำไรแล้ว</span>
+        <select id="pyramidEnabled"><option value="true">เสนอ</option><option value="false">ไม่เสนอ</option></select>
+        <div class="hint">วิธีของ Livermore — เติมเฉพาะไม้ที่พิสูจน์ตัวเองแล้ว โดยความเสี่ยงรวมไม่เกิน 1R เดิม</div>
+      </label>
+      <label class="fld"><span>เติมได้เมื่อกำไรถึงกี่ R</span>
+        <input id="pyramidMinR" type="number" min="0.2" max="10" step="0.1">
+      </label>
+      <label class="fld"><span>เติมได้สูงสุดกี่ครั้ง</span>
+        <input id="pyramidMaxAdds" type="number" min="0" max="10" step="1">
+      </label>
+    </div>
+  </section>
+
+  <!-- ═══ ★ v2: ความเร็ว ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon gold" data-icon="zap"></span>ความเร็วการตอบสนอง</h2>
+    <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+      v1 วิเคราะห์เรียงทีละตัว ทีละ timeframe ด้วย await — หุ้น 30 ตัว × 2 timeframe มักใช้เวลานานกว่าช่วงสแกน 60 วินาทีที่ตั้งไว้
+      ทำให้ข้อมูลที่เห็นเก่ากว่าที่คิดเสมอ
+      <br>hot-poll ยิงเฉพาะ "ราคา" ของเฉพาะไม้ที่ถืออยู่และหุ้นที่จ่อระดับเบรก แล้วเช็ค stop กับการแจ้งเตือนทันที
+      โดยไม่ต้องคำนวณใหม่ทั้งรอบ
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <label class="fld"><span>วิเคราะห์พร้อมกันกี่ตัว</span>
+        <input id="scanConcurrency" type="number" min="1" max="20" step="1">
+        <div class="hint">ตัวจำกัดอัตราของแต่ละ provider ยังทำงานอยู่ จึงไม่ทำให้โดน rate limit เพิ่ม</div>
+      </label>
+      <label class="fld"><span>hot-poll ทุกกี่วินาที</span>
+        <input id="hotPollSec" type="number" min="0" max="600" step="5">
+        <div class="hint">0 = ปิด · ต่ำกว่า 20 ไม่ได้ผล เพราะ cache ของราคาคือ 20 วินาที</div>
+      </label>
+      <label class="fld"><span>"ใกล้เป้า" คือห่างไม่เกินกี่ ATR</span>
+        <input id="hotDistanceAtr" type="number" min="0" max="5" step="0.1">
+      </label>
+    </div>
+  </section>
+
+  <!-- ═══ น้ำหนักคะแนน (สเปกข้อ 6) ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon" data-icon="calculator"></span>น้ำหนักคะแนน 6 ปัจจัย
+      <span id="weightSum" class="ml-auto text-sm font-normal"></span>
+    </h2>
+    <div id="weights" class="space-y-3"></div>
+    <div class="flex gap-2 mt-4">
+      <button id="btnWeightsDefault" class="btn btn-sm btn-ghost">
+        คืนค่าเริ่มต้น (25/20/15/15/15/10)
+      </button>
+      <button id="btnWeightsNormalize" class="btn btn-sm btn-ghost">
+        ปรับให้รวมได้ 100%
+      </button>
+    </div>
+    <label class="flex items-start gap-2 mt-4 text-xs cursor-pointer">
+      <input id="renormalizeWeights" type="checkbox" class="accent-sky-600 mt-0.5 w-4 h-4">
+      <span>
+        <b>เกลี่ยน้ำหนักเมื่อปัจจัยไหนไม่มีข้อมูล</b>
+        <div class="hint">เปิด = ถ้าไม่มีข่าว/ไม่มี spread จะเกลี่ยน้ำหนักไปปัจจัยที่มีข้อมูล (คะแนนเต็ม 100 เสมอ)<br>
+        ปิด (แนะนำ) = ปัจจัยที่ไม่มีข้อมูลได้ 50 คะแนนกลางๆ และแสดงว่าใช้น้ำหนักรวมเท่าไหร่ — โปร่งใสกว่า</div>
+      </span>
+    </label>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-800">
+      <label class="fld"><span>คะแนนที่ถือว่าเป็น "สัญญาณ"</span>
+        <input id="signalScore" type="number" min="0" max="100" step="1">
+        <div class="hint">ตัวเลขนี้ยังถูกปรับตามภาวะตลาดอีกชั้น (ตลาดแย่ = เกณฑ์สูงขึ้น)</div>
+      </label>
+      <label class="fld"><span>ซ่อนแถวที่คะแนนต่ำกว่า</span>
+        <input id="hideBelowScore" type="number" min="0" max="100" step="5">
+        <div class="hint">0 = แสดงทุกตัว · ต่างจากด้านซ้าย: ตัวนี้คือ "ไม่ต้องแสดงเลย" ส่วนด้านซ้ายคือ "แสดงแต่ไม่นับเป็นสัญญาณ"</div>
+      </label>
+      <label class="fld"><span>ความผันผวนที่เหมาะ — ขั้นต่ำ (%/วัน)</span>
+        <input id="atrPctLow" type="number" min="0.05" max="50" step="0.1">
+        <div class="hint">ต่ำกว่านี้ = นิ่งเกินไป scalp ไม่คุ้ม</div>
+      </label>
+      <label class="fld"><span>ความผันผวนที่เหมาะ — ขั้นสูง (%/วัน)</span>
+        <input id="atrPctHigh" type="number" min="0.1" max="100" step="0.1">
+        <div class="hint">สูงกว่านี้ = เหวี่ยงเกินคุมความเสี่ยง (ปัจจัยนี้เป็นระฆัง ไม่ใช่ยิ่งมากยิ่งดี)</div>
+      </label>
+    </div>
+  </section>
+
+  <!-- ═══ แนวต้าน ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon" data-icon="ruler"></span>การหาแนวต้านและราคาเป้าหมาย</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <label class="fld"><span>ระยะแจ้งเตือนใต้แนวต้าน (%)</span>
+        <input id="alertOffsetPct" type="number" min="0" max="10" step="0.05">
+        <div class="hint">สเปกกำหนด 0.1 (แนวต้าน × 0.999)</div>
+      </label>
+      <label class="fld"><span>แท่งยืนยัน pivot (k)</span>
+        <input id="pivotK" type="number" min="1" max="10" step="1">
+        <div class="hint">แท่งต้องสูงกว่า k แท่งซ้ายและขวา · ค่ามาก = แนวต้านน่าเชื่อถือกว่าแต่เจอน้อยลง</div>
+      </label>
+      <label class="fld"><span>รวม pivot เป็นโซน (เท่าของ ATR)</span>
+        <input id="clusterAtrMult" type="number" min="0.01" max="3" step="0.05">
+        <div class="hint">pivot ห่างกันไม่เกินนี้ = โซนเดียวกัน</div>
+      </label>
+      <label class="fld"><span>จำนวนแท่งย้อนหลัง (lookback)</span>
+        <input id="lookback" type="number" min="5" max="500" step="1">
+        <div class="hint">ใช้ตอนไม่มี pivot ยืนยัน</div>
+      </label>
+      <label class="fld"><span>จำนวนวันย้อนหลังสำหรับ RVOL</span>
+        <input id="rvolDays" type="number" min="3" max="60" step="1">
+        <div class="hint">เทียบ volume กับช่วงเวลาเดียวกันของ N วันก่อน · ต้องมีข้อมูลอย่างน้อย 3 วัน</div>
+      </label>
+    </div>
+  </section>
+
+  <!-- ═══ คุณภาพข้อมูล ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon" data-icon="search"></span>ด่านคุณภาพข้อมูล <span class="text-xs font-normal text-slate-500">(ตกด่านเหล่านี้ = ไม่นับเป็นสัญญาณ)</span></h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <label class="fld"><span>spread สูงสุด (%)</span><input id="maxSpreadPct" type="number" min="0.01" max="100" step="0.01">
+        <div class="hint">spread กว้าง = ต้นทุนเข้าออกสูง</div></label>
+      <label class="fld"><span>ราคาเก่าได้ไม่เกิน (วินาที)</span><input id="maxQuoteStaleSec" type="number" min="5" max="3600" step="5">
+        <div class="hint">เกินนี้ขึ้นเตือน "ข้อมูลไม่อัปเดต"</div></label>
+      <label class="fld"><span>มูลค่าซื้อขาย 5 นาทีขั้นต่ำ ($)</span><input id="minDollarVolume5m" type="number" min="0" step="50000">
+        <div class="hint">ต่ำกว่านี้ = สภาพคล่องไม่พอ scalp</div></label>
+    </div>
+  </section>
+
+  <!-- ═══ Universe ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon plum" data-icon="globe"></span>หุ้นที่จะสแกน <span class="sub">หุ้นอเมริกา</span></h2>
+    <label class="flex items-start gap-2 mb-4 text-sm cursor-pointer">
+      <input id="useAutoScreener" type="checkbox" class="accent-sky-600 mt-0.5 w-4 h-4">
+      <span><b>เปิด auto screener</b>
+        <div class="hint">ดึงหุ้นจาก day_gainers + most_actives ของ Yahoo มาสแกนเพิ่มจากรายการเฝ้าดู · ปิดเพื่อประหยัดโควตา API</div>
+      </span>
+    </label>
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <label class="fld"><span>จำนวนหุ้นจาก screener</span><input id="screenerSize" type="number" min="1" max="100" step="5"></label>
+      <label class="fld"><span>ราคาต่ำสุด ($)</span><input id="minPrice" type="number" min="0" step="0.5"></label>
+      <label class="fld"><span>ราคาสูงสุด ($)</span><input id="maxPrice" type="number" min="1" step="10"></label>
+      <label class="fld"><span>วอลุ่มเฉลี่ยขั้นต่ำ (หุ้น/วัน)</span><input id="minAvgVolume" type="number" min="0" step="100000"></label>
+    </div>
+  </section>
+
+  <!-- ═══ ★ หุ้นไทย (SET) ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon jade" data-icon="globe"></span>ตลาดที่สแกน · หุ้นไทย <span class="sub">SET — ข้อมูลฟรีจาก Yahoo</span></h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+      <label class="flex items-start gap-2 text-sm cursor-pointer">
+        <input id="usEnabled" type="checkbox" class="accent-sky-600 mt-0.5 w-4 h-4">
+        <span><b>สแกนหุ้นอเมริกา</b>
+          <div class="hint">เวลาไทยราว 20:30–03:00 น. (ตามเวลาทำการของนิวยอร์ก)</div>
+        </span>
+      </label>
+      <label class="flex items-start gap-2 text-sm cursor-pointer">
+        <input id="thEnabled" type="checkbox" class="accent-sky-600 mt-0.5 w-4 h-4">
+        <span><b>สแกนหุ้นไทย</b>
+          <div class="hint">เช้า 10:00–12:30 · บ่าย 14:30–16:30 น. · ระบบสแกนตลาดที่เปิดอยู่ให้เอง</div>
+        </span>
+      </label>
+    </div>
+    <div class="notice-gold text-xs mb-4 leading-relaxed">
+      ข้อมูลหุ้นไทยฟรีจาก Yahoo <b>ช้ากว่าตลาดจริงราว 15–30 นาที</b> — เหมาะกับการคัดหุ้นและดูกราฟ 15 นาที
+      ไม่เหมาะกับการเข้าออกเร็วแบบ scalping ควรเช็กราคาในแอปโบรกเกอร์ก่อนตัดสินใจทุกครั้ง
+      · ขนาดไม้ปัดเป็นทวีคูณของ 100 หุ้น · ไม่มีข่าว/sentiment ของหุ้นไทย (ปัจจัยนี้ได้คะแนนกลางๆ 50)
+    </div>
+    <label class="flex items-start gap-2 mb-2 text-sm cursor-pointer">
+      <input id="thUseUniverse" type="checkbox" class="accent-sky-600 mt-0.5 w-4 h-4">
+      <span><b>สแกนรายชื่อหุ้นไทยด้านล่าง</b> (นอกเหนือจากหุ้นไทยในรายการเฝ้าดู)
+        <div class="hint">ใส่ชื่อย่อ ไม่ต้องมี .BK คั่นด้วย comma หรือขึ้นบรรทัดใหม่ · ตั้งต้นเป็นหุ้นใหญ่ 100 ตัวใกล้เคียง SET100 (ไม่ใช่รายชื่อทางการ)</div>
+      </span>
+    </label>
+    <textarea id="thUniverse" rows="4" class="field w-full font-mono text-xs leading-relaxed" spellcheck="false"></textarea>
+    <div class="flex flex-wrap items-center gap-3 mt-2 mb-4 text-xs">
+      <span id="thUniverseCount" class="text-slate-500"></span>
+      <button id="btnThUniverseDefault" type="button" class="btn btn-xs btn-ghost">คืนรายชื่อตั้งต้น 100 ตัว</button>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <label class="fld"><span>เงินทุนสำหรับหุ้นไทย (บาท)</span><input id="thAccountSize" type="number" min="1" step="10000"></label>
+      <label class="fld"><span>ต้นทุนซื้อขายไป-กลับ (%)</span><input id="thCostPct" type="number" min="0" max="5" step="0.01">
+        <span class="hint">ค่าคอม + VAT + ค่าธรรมเนียมตลาด · ออนไลน์ทั่วไปราว 0.3–0.4%</span></label>
+      <label class="fld"><span>มูลค่าซื้อขายขั้นต่ำต่อ 5 นาที (บาท)</span><input id="thMinValue5m" type="number" min="0" step="50000"></label>
+      <label class="fld"><span>spread สูงสุด (ช่องราคา)</span><input id="thMaxSpreadTicks" type="number" min="1" max="20" step="1">
+        <span class="hint">ผ่านถ้าไม่เกินจำนวนช่องนี้ หรือไม่เกิน % ด้านขวา</span></label>
+      <label class="fld"><span>spread สูงสุด (%)</span><input id="thMaxSpreadPct" type="number" min="0.01" step="0.05"></label>
+      <label class="fld"><span>ข้อมูลช้ากว่าจริง (นาที)</span><input id="thDataDelayMin" type="number" min="0" max="120" step="5">
+        <span class="hint">สแกนต่อหลังปิดแต่ละช่วงเท่านี้ ให้เห็นราคาช่วงท้าย</span></label>
+      <label class="fld"><span>ถือว่าข้อมูลไม่อัปเดตเมื่อเก่ากว่า (วินาที)</span><input id="thMaxQuoteStaleSec" type="number" min="60" step="60"></label>
+      <label class="fld"><span>ATR% ขั้นต่ำ (หุ้นไทย)</span><input id="thAtrPctLow" type="number" min="0.05" step="0.1"></label>
+      <label class="fld"><span>ATR% ขั้นสูง (หุ้นไทย)</span><input id="thAtrPctHigh" type="number" min="0.1" step="0.1"></label>
+    </div>
+  </section>
+
+  <!-- ═══ API keys (สเปกข้อ 5.5) ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon gold" data-icon="key"></span>API Keys <span class="text-xs font-normal text-slate-500">(ทั้งหมดเป็น free tier · ไม่ใส่ = ข้าม provider นั้น ไม่ crash)</span></h2>
+    <div id="providerStatus" class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4"></div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="fld"><span>Finnhub — ราคา realtime หลัก + ปฏิทินงบ + ข่าว (60/นาที)</span>
+        <input id="key_finnhub" type="text" placeholder="ยังไม่ได้ตั้ง">
+        <div class="hint">ขอฟรีที่ finnhub.io/register · ⚠️ free tier ไม่ให้แท่งเทียน (ใช้ Yahoo แทน)</div></label>
+      <label class="fld"><span>Twelve Data — สำรองราคา + แท่งเทียน (8/นาที, 800/วัน)</span>
+        <input id="key_twelvedata" type="text" placeholder="ยังไม่ได้ตั้ง">
+        <div class="hint">twelvedata.com/pricing · 1 symbol = 1 credit ใช้เป็นตัวสำรอง</div></label>
+      <label class="fld"><span>Alpha Vantage — คะแนน sentiment เป็นตัวเลขจริง (25/วัน)</span>
+        <input id="key_alphavantage" type="text" placeholder="ยังไม่ได้ตั้ง">
+        <div class="hint">alphavantage.co/support/#api-key · โควตาแคบมาก เรียกเฉพาะหุ้นคะแนนสูงสุด</div></label>
+      <label class="fld"><span>Marketaux — ข่าว + sentiment (โควตากว้างกว่า)</span>
+        <input id="key_marketaux" type="text" placeholder="ยังไม่ได้ตั้ง">
+        <div class="hint">marketaux.com/register</div></label>
+      <label class="fld"><span>Financial Modeling Prep — float + short interest (250/วัน)</span>
+        <input id="key_fmp" type="text" placeholder="ยังไม่ได้ตั้ง">
+        <div class="hint">อาจไม่อยู่ใน free tier แล้ว — ระบบจะข้ามให้เองถ้าใช้ไม่ได้</div></label>
+      <label class="fld"><span>จำนวนหุ้นที่เรียก sentiment ต่อรอบ</span>
+        <input id="sentimentTopN" type="number" min="0" max="20" step="1">
+        <div class="hint">เรียกเฉพาะ N ตัวคะแนนสูงสุดที่ผ่านด่านแล้ว (ประหยัดโควตา Alpha Vantage 25/วัน)</div></label>
+    </div>
+    <div class="mt-4 px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
+      <b class="text-slate-300">ลำดับการใช้แหล่งข้อมูล (fallback ตามชนิดข้อมูล):</b>
+      <div id="chains" class="mt-1.5 space-y-0.5 num"></div>
+    </div>
+  </section>
+
+  <!-- ═══ LINE ═══ -->
+  <!-- ═══ ★ v2.1: ค่าเงิน ═══ -->
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon gold" data-icon="exchange"></span>ค่าเงิน <span class="sub">เฝ้าดูได้หลายสกุลพร้อมกัน</span></h2>
+    <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+      ระบบให้คะแนนว่า<b>เรตวันนี้ถูกหรือแพงแค่ไหนเทียบกับปีที่ผ่านมา</b> แล้วเตือนเมื่อถึงเกณฑ์หรือถึงเรตเป้าที่คุณตั้งไว้
+      <br><span class="text-amber-400">สิ่งที่มันตอบไม่ได้คือพรุ่งนี้เรตจะขึ้นหรือลง</span> — อัตราแลกเปลี่ยนเคลื่อนไหวใกล้เคียงการสุ่ม
+      การอยู่จุดต่ำสุดของปีไม่ได้แปลว่าจะเด้งขึ้น มันลงต่อได้อีก
+      <br>แต่ถ้าคุณ<i>ต้องแลกอยู่แล้ว</i> (เติมพอร์ตหรือถอนกำไรกลับ) คำถามคือ "แลกวันไหนดีในช่วงที่มีให้เลือก" ซึ่งคะแนนนี้ตอบได้
+      <br>ตรวจตามรอบที่ตั้งด้านล่างโดยอิสระจากการสแกนหุ้น — กด Stop Scanner แล้วค่าเงินยังถูกเฝ้าอยู่
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <label class="fld"><span>เปิดใช้งาน</span>
+        <select id="fxEnabled"><option value="true">เปิด</option><option value="false">ปิด</option></select>
+      </label>
+      <label class="fld"><span>คู่เงินที่เฝ้าดู (สูงสุด 8 คู่)</span>
+        <input id="fxPairs" type="text" placeholder="USD/THB, EUR/THB, JPY/THB">
+        <div class="hint">คั่นด้วย comma · คู่แรก = คู่หลัก · เพิ่ม/ลบได้จากการ์ดค่าเงินในแดชบอร์ดด้วย</div>
+      </label>
+      <label class="fld"><span>ตรวจทุกกี่วินาที</span>
+        <input id="fxPollSec" type="number" min="60" max="86400" step="60">
+        <div class="hint">900 = 15 นาที · ค่าเงินขยับช้ากว่าหุ้นมาก ยิงถี่กว่านี้คือเผาโควตาเปล่า</div>
+      </label>
+      <label class="fld"><span>ส่วนต่างธนาคาร/ร้านแลกเงิน (%)</span>
+        <input id="fxSpreadPct" type="number" min="0" max="10" step="0.05">
+        <div class="hint">เรตจาก provider เป็นเรตกลางตลาดที่<b>ไม่มีใครได้จริง</b> · ธนาคารไทยราว 0.3-0.8% ร้านแลกเงินแคบกว่า</div>
+      </label>
+      <label class="fld"><span>ช่วงย้อนหลังที่ใช้คิดสถิติ (วัน)</span>
+        <input id="fxLookbackDays" type="number" min="60" max="2000" step="5">
+        <div class="hint">365 = 1 ปี · สั้นกว่านี้จะไวต่อเหตุการณ์ล่าสุดมากขึ้น</div>
+      </label>
+      <label class="fld"><span>คะแนนที่ถือว่า "ควรแลกแล้ว"</span>
+        <input id="fxScoreThreshold" type="number" min="0" max="100" step="1">
+        <div class="hint">ถึงเกณฑ์แล้วส่งแจ้งเตือน · 75 = ค่อนข้างเลือก · 60 = เตือนบ่อยขึ้น</div>
+      </label>
+    </div>
+
+    <div class="mt-5 pt-4 border-t border-slate-800">
+      <h3 class="font-semibold text-sm mb-1">ทิศทางที่ต้องการให้เตือน (ใช้กับทุกคู่เงิน)</h3>
+      <p class="text-xs text-slate-400 mb-3">ระบบเตือนทิศทางละไม่เกิน 1 ครั้งต่อวันต่อคู่เงิน</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+          <div class="font-semibold text-sm">ซื้อเงินต่างประเทศ <span class="text-xs font-normal text-slate-500">(เช่น บาท → ดอลลาร์ เติมพอร์ต)</span></div>
+          <label class="fld"><span>เตือนทิศนี้</span>
+            <select id="fxAlertBuy"><option value="true">เตือน</option><option value="false">ไม่เตือน</option></select>
+          </label>
+          <label class="fld"><span>จำนวนบาทที่ตั้งใจจะแลก</span>
+            <input id="fxBuyAmountThb" type="number" min="0" step="1000">
+            <div class="hint">ใช้แปลงคะแนนเป็น "ได้เงินต่างประเทศมากกว่า/น้อยกว่าค่าเฉลี่ยเท่าไหร่" ซึ่งมีความหมายกว่าคะแนน · ใช้กับทุกคู่ที่เทียบบาท</div>
+          </label>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+          <div class="font-semibold text-sm">แลกเงินต่างประเทศกลับ <span class="text-xs font-normal text-slate-500">(เช่น ดอลลาร์ → บาท ถอนกำไร)</span></div>
+          <label class="fld"><span>เตือนทิศนี้</span>
+            <select id="fxAlertSell"><option value="true">เตือน</option><option value="false">ไม่เตือน</option></select>
+          </label>
+          <label class="fld"><span>จำนวนดอลลาร์ที่ตั้งใจจะแลก</span>
+            <input id="fxSellAmountUsd" type="number" min="0" step="100">
+            <div class="hint">ใช้กับคู่ USD · สกุลอื่นใช้มูลค่าเท่ากับจำนวนบาทด้านซ้ายแทน (เช่น ฿100,000 ≈ ¥485,000)</div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ★ เรตเป้าแยกตามคู่เงิน — แถวสร้างจากช่อง "คู่เงินที่เฝ้าดู" ด้านบน -->
+    <div class="mt-5 pt-4 border-t border-slate-800">
+      <h3 class="font-semibold text-sm mb-1">เรตเป้าที่ตั้งเอง แยกตามคู่เงิน</h3>
+      <p class="text-xs text-slate-400 mb-3">
+        เว้นว่างหรือ 0 = ไม่ใช้ ให้ดูจากคะแนนอย่างเดียว · เรตของแต่ละสกุลต่างกันมาก (ดอลลาร์ ~33 บาท แต่เยน ~0.21 บาท) จึงต้องตั้งแยกกัน
+        · เป้าซื้อควรต่ำกว่าเป้าขาย ไม่งั้นช่วงทับกันแล้วเตือนทั้งสองทาง
+      </p>
+      <div id="fxTargetRows" class="space-y-3"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="h-title"><span class="h-icon jade" data-icon="message"></span>แจ้งเตือนเข้า LINE <span class="text-xs font-normal text-slate-500">(ช่องเสริม)</span></h2>
+    <label class="flex items-start gap-2 mb-4 text-sm cursor-pointer">
+      <input id="lineEnabled" type="checkbox" class="accent-sky-600 mt-0.5 w-4 h-4">
+      <span><b>ส่งแจ้งเตือนเข้า LINE ด้วย</b>
+        <div class="hint">สวิตช์หลัก — ได้รับแจ้งเตือนตอนไม่ได้เปิดหน้าเว็บอยู่ · ต้องมี token และ target ID
+          <br>ส่ง<b>อะไร</b>เข้า LINE บ้าง (เช่น คะแนนหุ้นถึง 50) ตั้งได้ที่แดชบอร์ด: ปุ่ม <b>🔔 กฎแจ้งเตือน</b> บนการ์ดตารางหุ้นและการ์ดค่าเงิน</div>
+      </span>
+    </label>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="fld"><span>LINE Channel Access Token</span><input id="lineToken" type="text" placeholder="ยังไม่ได้ตั้ง"></label>
+      <label class="fld"><span>LINE Target ID (user/group)</span><input id="lineTarget" type="text" placeholder="ยังไม่ได้ตั้ง"></label>
+    </div>
+    <button id="btnLineTest" class="btn btn-sm btn-ghost mt-3">
+      ส่งข้อความทดสอบ
+    </button>
+    <span id="lineTestResult" class="ml-2 text-xs"></span>
+  </section>
+
+  <!-- ═══ Disclaimer (สเปกข้อ 6) ═══ -->
+  <footer class="notice-gold p-5 text-xs leading-relaxed">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="h-icon gold !w-7 !h-7" data-icon="shield"></span>
+      <b class="text-sm font-serif">คำเตือนความเสี่ยง</b>
+    </div>
+    เครื่องมือนี้เป็น <b>เครื่องมือช่วยคัดกรองหุ้น</b> เท่านั้น <b>ไม่ใช่คำแนะนำการลงทุน</b>
+    และไม่ใช่การรับประกันผลตอบแทนใดๆ<br>
+    การปรับค่าในหน้านี้เปลี่ยนวิธีที่ระบบให้คะแนนและคัดกรอง <b>แต่ไม่ได้ทำให้ผลการเทรดดีขึ้นโดยอัตโนมัติ</b>
+    ควรทดสอบที่หน้า <a href="/backtest" class="underline hover:text-amber-200">Backtest</a> ก่อนใช้เงินจริงทุกครั้ง<br>
+    การซื้อขายหุ้นระยะสั้นมีความเสี่ยงสูงที่จะสูญเสียเงินต้น ผู้ใช้รับความเสี่ยงเองทั้งหมด
+  </footer>
+
+  <!-- ═══ ปุ่มบันทึก — ลอยติดขอบล่างตลอด ไม่ต้องเลื่อนลงมาหา ═══ -->
+  <section class="action-dock flex flex-wrap items-center gap-2">
+    <button id="btnSave" class="btn btn-lg btn-primary"><span data-icon="save"></span>บันทึกการตั้งค่า</button>
+    <button id="btnReload" class="btn btn-ghost"><span data-icon="refresh"></span>โหลดค่าปัจจุบันใหม่</button>
+    <div class="flex-1"></div>
+    <button id="btnClearCache" class="btn btn-ghost"><span data-icon="trash"></span>ล้าง cache ข้อมูล</button>
+    <button id="btnResetAll" class="btn btn-ghost-danger"><span data-icon="rotate"></span>คืนค่าเริ่มต้นทั้งหมด</button>
+  </section>
+  <div class="h-4"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const W_KEYS = [
+  ['rvol', 'Relative Volume (RVOL)', 'วอลุ่มเทียบค่าเฉลี่ยช่วงเวลาเดียวกัน — ตัวชี้วัดสำคัญที่สุดของ scalping'],
+  ['volatility', 'ATR% / ความผันผวน', 'หุ้นนิ่งเทรด scalp ไม่ได้ · แต่เหวี่ยงเกินก็คุมความเสี่ยงไม่ได้'],
+  ['resistance', 'ระยะห่างจากแนวต้าน', 'ใกล้เบรกเอาท์ = โอกาสวิ่ง · แต่ชิดเกินไป R:R หาย'],
+  ['momentum', 'Momentum', '%เปลี่ยนแปลง + การเรียงตัวและความชันของ EMA'],
+  ['sentiment', 'News Sentiment', 'ข่าวบวก + วอลุ่มมา = โอกาสสูง · ไม่มีข้อมูลได้ 50 กลางๆ'],
+  ['liquidity', 'Spread / สภาพคล่อง', 'spread กว้าง = ต้นทุนสูง หักคะแนน'],
+];
+
+const NUM_FIELDS = ['scanIntervalSec','accountSize','riskPct','minRR','atrStopMult','minStopAtr','targetExtAtr',
+  'signalScore','atrPctLow','atrPctHigh','alertOffsetPct','pivotK','clusterAtrMult','lookback',
+  'maxSpreadPct','maxQuoteStaleSec','minDollarVolume5m','screenerSize','minPrice','maxPrice','minAvgVolume','sentimentTopN',
+  'hideBelowScore','rvolDays',
+  // ★ v2
+  'minStopPct','costPct','minTargetMovePct','stopAtrDaily','targetAtrDaily',
+  'minTrendChecks','minRsScore','confirmOffsetPct','breakoutRvolMin',
+  'maxOpenTrades','dailyLossLimitR','tp1R','tp1Pct','trailAtrMult','timeStopMin',
+  'pyramidMinR','pyramidMaxAdds','scanConcurrency','hotPollSec','hotDistanceAtr',
+  // ★ v2.1 — ค่าเงิน
+  'fxPollSec','fxLookbackDays','fxSpreadPct','fxScoreThreshold',
+  'fxBuyAmountThb','fxSellAmountUsd', // เรตเป้า (fxBuyBelow/fxSellAbove) ย้ายไปตารางแยกคู่ — ดู fxTargets
+  // ★ หุ้นไทย
+  'thAccountSize','thCostPct','thMinValue5m','thMaxSpreadTicks','thMaxSpreadPct','thDataDelayMin',
+  'thMaxQuoteStaleSec','thAtrPctLow','thAtrPctHigh'];
+
+// ★ v2 — ช่องที่เป็น select ค่า true/false (เก็บเป็น boolean จริงตอนบันทึก)
+const BOOL_SELECTS = ['requireTrendTemplate','requireAboveVwap','trackTrades',
+  'breakevenAfterTp1','exitAtTarget','exitOnEmaLost','exitOnVwapLost','pyramidEnabled',
+  'fxEnabled','fxAlertBuy','fxAlertSell']; // ★ v2.1
+// ★ v2 — ช่องที่เป็นสตริงล้วน
+const STR_FIELDS = ['tradeAtrBasis','entryMode','rsBenchmark']; // ★ v2.1 — คู่เงินย้ายไป fxPairs
+
+let current = null;
+let fxCurrencies = [];
+let thUniverseDefault = []; // ★ รายชื่อหุ้นไทยตั้งต้นจาก server
+
+// ★ รายชื่อหุ้นไทย: ข้อความ ↔ รายการ
+const parseThList = (text) => [...new Set(String(text).split(/[\s,;]+/).map((c) => c.trim().toUpperCase().replace(/\.BK$/, '')).filter(Boolean))];
+function updateThCount() {
+  const n = parseThList($('thUniverse').value).length;
+  $('thUniverseCount').textContent = `${n} ตัว · สแกน 2 timeframe = ${n * 2} งานต่อรอบ`;
+}
+
+// ═══════════ ★ ค่าเงินหลายคู่ ═══════════
+const PAIR_RE = /^[A-Z]{3}\/[A-Z]{3}$/;
+const parsePairs = (text) => [...new Set(String(text).split(',').map((p) => p.trim().toUpperCase()).filter((p) => PAIR_RE.test(p)))];
+const curName = (code) => fxCurrencies.find((c) => c.code === code)?.name || code;
+
+// เรตเป้าของคู่หนึ่งจากค่าที่บันทึกไว้ (คู่หลักใช้ช่องแบบเดิมถ้ายังไม่เคยตั้งแยก)
+function savedTargets(s, pair) {
+  const t = s?.fxTargets?.[pair] || {};
+  const legacy = pair === s?.fxPair;
+  return {
+    buyBelow: t.buyBelow ?? (legacy ? s.fxBuyBelow : 0),
+    sellAbove: t.sellAbove ?? (legacy ? s.fxSellAbove : 0),
+  };
+}
+
+// วาดแถวตามคู่ในช่อง fxPairs — เก็บค่าที่พิมพ์ค้างไว้ในแถวเดิมด้วย ไม่ให้หายตอนแก้รายการคู่
+function renderFxTargets() {
+  const box = $('fxTargetRows');
+  const typed = {};
+  for (const row of box.querySelectorAll('[data-pair]')) {
+    typed[row.dataset.pair] = { buyBelow: row.querySelector('.t-buy').value, sellAbove: row.querySelector('.t-sell').value };
+  }
+  const pairs = parsePairs($('fxPairs').value);
+  if (pairs.length === 0) {
+    box.innerHTML = '<div class="text-xs text-slate-500">ใส่คู่เงินในช่องด้านบนก่อน</div>';
+    return;
+  }
+  box.innerHTML = pairs.map((p) => {
+    const [base, quote] = p.split('/');
+    const t = typed[p] || savedTargets(current, p);
+    const val = (v) => (Number(v) > 0 ? esc(v) : '');
+    return `
+      <div data-pair="${esc(p)}" class="grid grid-cols-1 sm:grid-cols-[180px_1fr_1fr] gap-3 items-end rounded-2xl border border-slate-800 bg-slate-950 p-4">
+        <div>
+          <div class="font-semibold text-sm num">${esc(p)}</div>
+          <div class="text-[11px] text-slate-500">${esc(curName(quote))} ต่อ 1 ${esc(curName(base))}</div>
+        </div>
+        <label class="fld"><span>ซื้อ — เตือนเมื่อเรต<b>ต่ำกว่า</b></span>
+          <input class="t-buy" type="number" min="0" step="any" placeholder="ไม่ใช้" value="${val(t.buyBelow)}">
+        </label>
+        <label class="fld"><span>ขายกลับ — เตือนเมื่อเรต<b>สูงกว่า</b></span>
+          <input class="t-sell" type="number" min="0" step="any" placeholder="ไม่ใช้" value="${val(t.sellAbove)}">
+        </label>
+      </div>`;
+  }).join('');
+}
+
+function collectFxTargets() {
+  const out = {};
+  for (const row of $('fxTargetRows').querySelectorAll('[data-pair]')) {
+    const num = (el) => (el.value.trim() === '' ? 0 : Number(el.value));
+    out[row.dataset.pair] = { buyBelow: num(row.querySelector('.t-buy')), sellAbove: num(row.querySelector('.t-sell')) };
+  }
+  return out;
+}
+
+function renderWeights(w) {
+  $('weights').innerHTML = W_KEYS.map(([k, label, why]) => `
+    <div>
+      <div class="flex items-center justify-between text-xs mb-1">
+        <span><b>${label}</b> <span class="text-slate-500">— ${why}</span></span>
+        <b id="wv_${k}" class="num text-sky-400 ml-3 px-2 py-0.5 rounded-full bg-sky-950 border border-sky-800">${w[k]}%</b>
+      </div>
+      <input id="w_${k}" type="range" min="0" max="60" step="1" value="${w[k]}" class="w-full">
+    </div>`).join('');
+
+  for (const [k] of W_KEYS) {
+    $(`w_${k}`).oninput = (e) => { $(`wv_${k}`).textContent = e.target.value + '%'; updateWeightSum(); };
+  }
+  updateWeightSum();
+}
+
+function currentWeights() {
+  const o = {};
+  for (const [k] of W_KEYS) o[k] = Number($(`w_${k}`).value);
+  return o;
+}
+
+function updateWeightSum() {
+  const w = currentWeights();
+  const sum = Object.values(w).reduce((a, b) => a + b, 0);
+  const el = $('weightSum');
+  el.textContent = `รวม ${sum}%`;
+  el.className = 'ml-auto text-sm font-normal ' + (sum === 100 ? 'text-emerald-400' : 'text-amber-400');
+  if (sum !== 100) el.textContent += ' (บันทึกแล้วระบบจะปรับสัดส่วนให้รวม 100)';
+}
+
+function fill(s) {
+  current = s;
+  $('session').value = s.session;
+
+  const tfSel = $('timeframes');
+  for (const opt of tfSel.options) opt.selected = s.timeframes.includes(opt.value);
+
+  for (const f of NUM_FIELDS) if ($(f)) $(f).value = s[f];
+  for (const f of BOOL_SELECTS) if ($(f)) $(f).value = s[f] ? 'true' : 'false'; // ★ v2
+  for (const f of STR_FIELDS) if ($(f)) $(f).value = s[f] ?? '';                // ★ v2
+
+  $('useAutoScreener').checked = !!s.useAutoScreener;
+  $('scanWhenClosed').checked = !!s.scanWhenClosed;
+  // ★ หุ้นไทย
+  $('usEnabled').checked = s.usEnabled !== false;
+  $('thEnabled').checked = s.thEnabled !== false;
+  $('thUseUniverse').checked = s.thUseUniverse !== false;
+  $('thUniverse').value = (s.thUniverse || []).join(', ');
+  updateThCount();
+  $('renormalizeWeights').checked = !!s.renormalizeWeights;
+  $('lineEnabled').checked = !!s.lineEnabled;
+  $('lineToken').value = s.lineToken || '';
+  $('lineTarget').value = s.lineTarget || '';
+
+  for (const [k, v] of Object.entries(s.apiKeys || {})) {
+    const el = $(`key_${k}`);
+    if (el) el.value = v || '';
+  }
+
+  renderWeights(s.weights);
+
+  // ★ ค่าเงินหลายคู่ — ล้างแถวเดิมก่อน เพื่อให้แสดงค่าที่บันทึกจริง ไม่ใช่ค่าที่พิมพ์ค้าง
+  $('fxPairs').value = (s.fxPairs || [s.fxPair]).join(', ');
+  $('fxTargetRows').innerHTML = '';
+  renderFxTargets();
+}
+
+function renderProviders(list) {
+  $('providerStatus').innerHTML = (list || []).map(p => {
+    const cls = { ok:'border-emerald-700 bg-emerald-950/25', degraded:'border-amber-700 bg-amber-950/25',
+                  exhausted:'border-red-700 bg-red-950/25', disabled:'border-slate-700 bg-slate-950/40' }[p.status];
+    const dot = { ok:'bg-emerald-400', degraded:'bg-amber-400', exhausted:'bg-red-400', disabled:'bg-slate-600' }[p.status];
+    const q = p.quota || {};
+    const parts = [];
+    if (q.perMinute != null) parts.push(`นาทีนี้ ${q.usedMinute}/${q.perMinute}`);
+    if (q.perDay != null) parts.push(`วันนี้ ${q.usedDay}/${q.perDay}`);
+    return `<div class="rounded-xl border px-3.5 py-3 ${cls}">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="w-2 h-2 rounded-full ${dot}"></span><b class="text-sm">${esc(p.name)}</b>
+        <span class="text-[10px] text-slate-500 ml-auto">${esc(p.capabilities.join(' · '))}</span>
+      </div>
+      <div class="text-[11px] text-slate-400">${esc(p.statusText)}</div>
+      ${parts.length ? `<div class="text-[11px] text-slate-500 num">${esc(parts.join(' · '))}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderChains(chains) {
+  const labels = { quote:'ราคาปัจจุบัน', bars:'แท่งเทียน', earnings:'ปฏิทินงบ',
+                   news:'ข่าว/sentiment', fundamentals:'float/short', screener:'screener' };
+  $('chains').innerHTML = Object.entries(chains || {})
+    .map(([k, v]) => `<div><span class="inline-block w-28 text-slate-500">${labels[k] || k}</span> ${esc(v.join(' → '))}</div>`)
+    .join('');
+}
+
+function bar(msg, kind) {
+  const el = $('saveBar');
+  el.className = 'sticky top-[84px] z-30 rounded-xl border px-4 py-3 text-sm shadow-lg ' + (
+    kind === 'error' ? 'bg-red-950/80 border-red-700 text-red-200'
+    : kind === 'warn' ? 'bg-amber-950/80 border-amber-700 text-amber-200'
+    : 'bg-emerald-950/80 border-emerald-700 text-emerald-200');
+  el.innerHTML = msg;
+  el.classList.remove('hidden');
+  clearTimeout(bar._t);
+  bar._t = setTimeout(() => el.classList.add('hidden'), 10000);
+}
+
+async function load() {
+  const r = await (await fetch('/api/settings')).json();
+  if (!r.ok) { bar('โหลดการตั้งค่าไม่สำเร็จ', 'error'); return; }
+  fxCurrencies = r.fxCurrencies || fxCurrencies;
+  thUniverseDefault = r.thUniverseDefault || thUniverseDefault;
+  fill(r.settings);
+  renderProviders(r.providers);
+  renderChains(r.chains);
+  if (r.mockMode) bar('⚠️ โหมดข้อมูลจำลองเปิดอยู่ (MOCK_DATA=true) — ตัวเลขไม่ใช่ราคาจริง', 'warn');
+}
+
+$('btnSave').onclick = async () => {
+  const body = { weights: currentWeights() };
+  for (const f of NUM_FIELDS) if ($(f)) body[f] = Number($(f).value);
+  for (const f of BOOL_SELECTS) if ($(f)) body[f] = $(f).value === 'true';      // ★ v2
+  for (const f of STR_FIELDS) if ($(f)) body[f] = $(f).value.trim();            // ★ v2
+
+  body.session = $('session').value;
+  body.timeframes = [...$('timeframes').selectedOptions].map(o => o.value);
+  body.useAutoScreener = $('useAutoScreener').checked;
+  body.scanWhenClosed = $('scanWhenClosed').checked;
+  // ★ หุ้นไทย
+  body.usEnabled = $('usEnabled').checked;
+  body.thEnabled = $('thEnabled').checked;
+  body.thUseUniverse = $('thUseUniverse').checked;
+  body.thUniverse = parseThList($('thUniverse').value);
+  body.renormalizeWeights = $('renormalizeWeights').checked;
+  body.lineEnabled = $('lineEnabled').checked;
+  body.lineToken = $('lineToken').value.trim();
+  body.lineTarget = $('lineTarget').value.trim();
+  body.fxPairs = $('fxPairs').value;          // ★ server ตรวจรูปแบบและแจ้งคู่ที่ผิดกลับมา
+  body.fxTargets = collectFxTargets();
+  body.apiKeys = {};
+  for (const k of ['finnhub','twelvedata','alphavantage','marketaux','fmp']) {
+    body.apiKeys[k] = $(`key_${k}`).value.trim();
+  }
+
+  if (body.timeframes.length === 0) { bar('ต้องเลือก timeframe อย่างน้อย 1 อัน', 'error'); return; }
+
+  const r = await (await fetch('/api/settings', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  })).json();
+
+  if (!r.ok) { bar('บันทึกไม่สำเร็จ: ' + esc(r.error || ''), 'error'); return; }
+
+  fill(r.settings);
+  const warn = (r.warnings || []);
+  bar('✓ บันทึกแล้ว — มีผลทันที ไม่ต้องรีสตาร์ท server' +
+      (warn.length ? '<br><b>หมายเหตุ:</b><br>' + warn.map(w => '• ' + esc(w)).join('<br>') : ''),
+      warn.length ? 'warn' : 'ok');
+  load();
+};
+
+$('btnReload').onclick = () => { load(); bar('โหลดค่าปัจจุบันใหม่แล้ว', 'ok'); };
+
+$('btnResetAll').onclick = async () => {
+  if (!confirm('คืนค่าเริ่มต้นทั้งหมด? (API key จะกลับไปใช้ค่าจากไฟล์ .env)')) return;
+  const r = await (await fetch('/api/settings/reset', { method: 'POST' })).json();
+  if (r.ok) { fill(r.settings); bar('คืนค่าเริ่มต้นแล้ว', 'ok'); load(); }
+};
+
+$('btnClearCache').onclick = async () => {
+  await fetch('/api/providers/clear-cache', { method: 'POST' });
+  bar('ล้าง cache แล้ว — รอบสแกนถัดไปจะดึงข้อมูลใหม่ทั้งหมด', 'ok');
+};
+
+$('btnWeightsDefault').onclick = () => {
+  renderWeights({ rvol:25, volatility:20, resistance:15, momentum:15, sentiment:15, liquidity:10 });
+};
+
+$('btnWeightsNormalize').onclick = () => {
+  const w = currentWeights();
+  const sum = Object.values(w).reduce((a,b)=>a+b,0);
+  if (sum <= 0) { renderWeights({ rvol:25, volatility:20, resistance:15, momentum:15, sentiment:15, liquidity:10 }); return; }
+  const out = {};
+  for (const [k] of W_KEYS) out[k] = Math.round((w[k]/sum)*100);
+  // ปรับเศษให้รวมได้ 100 พอดี
+  const diff = 100 - Object.values(out).reduce((a,b)=>a+b,0);
+  if (diff !== 0) out.rvol = Math.max(0, out.rvol + diff);
+  renderWeights(out);
+};
+
+$('btnLineTest').onclick = async () => {
+  const el = $('lineTestResult');
+  el.textContent = 'กำลังส่ง…';
+  el.className = 'ml-2 text-xs text-slate-400';
+  const r = await (await fetch('/api/line/test', { method: 'POST' })).json();
+  el.textContent = r.ok ? '✓ ส่งสำเร็จ — เช็คใน LINE' : '✗ ' + (r.reason || 'ส่งไม่สำเร็จ');
+  el.className = 'ml-2 text-xs ' + (r.ok ? 'text-emerald-400' : 'text-red-400');
+};
+
+$('fxPairs').addEventListener('input', renderFxTargets); // แก้รายการคู่ → แถวเรตเป้าตามทันที
+// ★ หุ้นไทย
+$('thUniverse').addEventListener('input', updateThCount);
+$('btnThUniverseDefault').onclick = () => {
+  $('thUniverse').value = thUniverseDefault.join(', ');
+  updateThCount();
+  bar('ใส่รายชื่อตั้งต้น 100 ตัวแล้ว — กดบันทึกเพื่อใช้งาน', 'ok');
+};
+
+load();
+setInterval(async () => {
+  try {
+    const r = await (await fetch('/api/providers')).json();
+    if (r.ok) renderProviders(r.providers);
+  } catch {}
+}, 15000);
+</script>
+</body>
+</html>
